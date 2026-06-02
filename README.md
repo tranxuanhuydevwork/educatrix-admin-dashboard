@@ -1,0 +1,1 @@
+copy new file from .env.example and name it .env then fill in your configuration
