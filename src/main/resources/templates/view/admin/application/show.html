@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Purple Admin</title>
+    <link rel="stylesheet" th:src="@{/css/materialdesignicons.min.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="static/css/vendor.bundle.base.css">
+    <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
+    <link th:href="@{/css/style.css}" rel="stylesheet" />
+    <link th:href="@{/css/style111.css}" rel="stylesheet" />
+    <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+    <link rel="shortcut icon" href="images/favicon.png" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script> <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        :root {
+            --bg-color: #f8f9fc;
+            --text-color: #333;
+            --primary-color: #6216FF;
+            --primary-light: #EAE4F3;
+            --primary-dark: #4A00E0;
+            --success-color: #1BC5BD;
+            --danger-color: #F64E60;
+            --warning-color: #FFA800;
+            --info-color: #3699FF;
+            --card-bg: #fff;
+            --border-color: #edf2f7;
+            --shadow-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .dark-mode {
+            --bg-color: #1E1E2D;
+            --text-color: #E6E6E6;
+            --primary-color: #7E57C2;
+            --primary-light: #30304D;
+            --primary-dark: #9575CD;
+            --card-bg: #2A2A3C;
+            --border-color: #3F3F5F;
+            --shadow-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .filter-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 1.5rem 0;
+            padding: 0 1rem;
+        }
+
+        .search-input {
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            width: 250px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px var(--shadow-color);
+        }
+
+        .search-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(98, 22, 255, 0.25);
+        }
+
+        .search-input::placeholder {
+            color: #9CA3AF;
+        }
+
+        button {
+            padding: 0.625rem 1.25rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+
+        button i {
+            font-size: 0.9rem;
+        }
+
+        /* Sort and Filter Buttons */
+        [data-bs-toggle="dropdown"] {
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+            border: none;
+            font-weight: 500;
+        }
+
+        [data-bs-toggle="dropdown"]:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .dropdown-menu {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 10px 15px var(--shadow-color);
+            padding: 0.5rem 0;
+        }
+
+        .dropdown-menu.dropdown-menu-dark {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+        }
+
+        .dropdown-item {
+            color: var(--text-color);
+            padding: 0.75rem 1rem;
+            transition: all 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+        }
+
+        /* Tab Container */
+        .tab-container {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 0 1rem;
+            border-bottom: none;
+        }
+
+        .tab-button {
+            padding: 0.875rem 1.5rem;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px var(--shadow-color);
+        }
+
+        .tab-button:hover {
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+        }
+
+        .tab-button.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            box-shadow: 0 8px 15px rgba(98, 22, 255, 0.25);
+        }
+
+        /* Tab Content */
+        .tab-content {
+            background-color: var(--card-bg);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 15px var(--shadow-color);
+            transition: all 0.3s;
+        }
+
+        .tab-content h3 {
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* Table Styles */
+        .table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-bottom: 1rem;
+        }
+
+        .table thead tr {
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+        }
+
+        .dark-mode .table thead tr {
+            background-color: var(--primary-dark);
+            color: #fff;
+        }
+
+        .table th, .table td {
+            padding: 1rem;
+            vertical-align: middle;
+            border: none;
+        }
+
+        .table th {
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+        .table tr {
+            transition: all 0.2s;
+        }
+
+        .table tbody tr:hover {
+            background-color: var(--primary-light);
+            transform: scale(1.01);
+        }
+
+        .dark-mode .table tbody tr:hover {
+            background-color: var(--primary-dark);
+        }
+
+        /* Status Indicators */
+        .status {
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .status-scheduled {
+            background-color: rgba(255, 168, 0, 0.15);
+            color: #FFA800;
+        }
+
+        .status-inactive {
+            background-color: rgba(246, 78, 96, 0.15);
+            color: #F64E60;
+        }
+
+        .status-publish {
+            background-color: rgba(27, 197, 189, 0.15);
+            color: #1BC5BD;
+        }
+
+        /* Action Buttons */
+        .btn-gradient-info {
+            background: linear-gradient(135deg, #3699FF, #0078FF);
+            color: white;
+            border: none;
+            padding: 0.5rem;
+            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .btn-gradient-info:hover {
+            background: linear-gradient(135deg, #0078FF, #005ECC);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 120, 255, 0.3);
+        }
+
+        .btn-gradient-danger {
+            background: linear-gradient(135deg, #F64E60, #EC2F47);
+            color: white;
+        }
+
+        .btn-gradient-success {
+            background: linear-gradient(135deg, #1BC5BD, #0BB7AF);
+            color: white;
+        }
+
+        #approveApplication, #modalView {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .confirm-modal-content1 {
+            background-color: var(--card-bg);
+            border-radius: 15px;
+            padding: 2rem;
+            width: 500px;
+            max-width: 90%;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            position: relative;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        /* Modal Animation */
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #modalView.active, #approveApplication.active {
+            display: flex;
+            animation: modalFadeIn 0.3s ease-out;
+        }
+
+        /* Update tab content display */
+        #basicInfo, #paymentInfo {
+            display: none;
+        }
+
+        #basicInfo.active, #paymentInfo.active {
+            display: block;
+        }
+
+        .confirm-modal-content1 h3 {
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .confirm-modal-content1 .btn-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-color);
+            cursor: pointer;
+        }
+
+        .confirm-modal-content1 .tab-container {
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .confirm-modal-content1 .tab-link {
+            padding: 0.75rem 1rem;
+            border: none;
+            background: none;
+            color: var(--text-color);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 1rem;
+            text-decoration: none;
+        }
+
+        .confirm-modal-content1 .tab-link.active {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        #applicationInfo {
+            margin-top: 1.5rem;
+        }
+
+        #applicationInfo table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        #applicationInfo table th, #applicationInfo table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #applicationInfo table th {
+            text-align: left;
+            font-weight: 600;
+            color: var(--primary-color);
+            width: 40%;
+        }
+
+        #buttonApplicationInfo {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+        }
+
+        #buttonApplicationInfo button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .tab-content {
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .filter-container {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .search-input {
+                width: 100%;
+                margin-bottom: 1rem;
+            }
+
+            .d-flex.gap-2 {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .tab-container {
+                flex-wrap: wrap;
+            }
+
+            .tab-button {
+                flex: 1 0 auto;
+                text-align: center;
+            }
+        }
+
+        /* Breadcrumb Style */
+        .breadcrumb {
+            display: flex;
+            padding: 0.75rem 1rem;
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 5px var(--shadow-color);
+        }
+
+        .breadcrumb-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .breadcrumb-item + .breadcrumb-item::before {
+            content: ">";
+            padding: 0 0.5rem;
+            color: #6c757d;
+        }
+
+        .breadcrumb-item a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .breadcrumb-item.active {
+            color: #6c757d;
+        }
+    </style>
+
+    <script>
+        var filterArray = [];
+        function closeModal() {
+            document.getElementById("modalView").style.display="none";
+        }
+        function openProof(type) {
+            let proofImage = document.getElementById("proofImage");
+            if (type === "ban") {
+                proofImage.src = "https://via.placeholder.com/500x300/ff0000/ffffff?text=Bằng+chứng+Banned";
+            } else if (type === "suspend") {
+                proofImage.src = "https://via.placeholder.com/500x300/ff9900/ffffff?text=Bằng+chứng+Suspended";
+            }
+
+            document.getElementById("proofModal").style.display = "block";
+        }
+
+        function closeProof() {
+            document.getElementById("proofModal").style.display = "none";
+        }
+
+        function outsideClick(event) {
+            let modal = document.getElementById("proofModal");
+            if (event.target === modal) {
+                closeProof();
+            }
+        }
+        var currentTab = null;
+        var applicationListPending = null;
+        var applicationListReviewed = null;
+         var socket = new SockJS('/ws');
+        var stompClient = Stomp.over(socket);
+
+        stompClient.connect({},function (){
+            stompClient.subscribe('/topic/application', function (message) {
+                var applicationList = JSON.parse(message.body);
+                console.log(applicationList);
+                applicationListPending = applicationList.pendingList;
+                applicationListReviewed = applicationList.reviewedList;
+                applicationTeacherList(applicationList.pendingList);
+                applicationReviewedTeacherList(applicationList.reviewedList);
+            })
+            stompClient.send("/app/admin/application",{},{});
+
+        })
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById("pendingTab").style.display = "block";
+            let currentAction = null;
+            let selectedId = null;
+            let modalApprove = document.getElementById("modalView");
+
+            document.getElementById("search-input").addEventListener("input", function (item) {
+                let searchNewValue = item.target.value;
+                stompClient.send("/app/admin/application/filter", {}, searchNewValue);
+            });
+
+            document.querySelectorAll(".content-wrapper").forEach(function (button) {
+                button.addEventListener('click', function (event) {
+                    let target = event.target;
+
+                    if (target.tagName === 'I') {
+                        target = target.closest('button');
+                    }
+
+
+                    if (target && target.classList.contains("btn-gradient-info")) {
+                        selectedId = target.getAttribute("data-id");
+                        console.log("View ID:", selectedId);
+                        currentAction = 'view';
+                        getApplicationTeacherInfo(selectedId);
+                    }
+                });
+            });
+            document.getElementById('buttonApplicationInfo').addEventListener('click', function(event) {
+                let target = event.target;
+
+                if (target.tagName === 'BUTTON') {
+                    if (target.classList.contains('btn-gradient-success')) {
+                        const applicationId = target.getAttribute('data-id');
+                        approveApplication(applicationId);
+                        closeModal();
+                    } else if (target.classList.contains('btn-gradient-danger')) {
+                        const applicationId = target.getAttribute('data-id');
+                        rejectApplication(applicationId);
+                        closeModal();
+                    }
+                }
+            });
+            console.log(document.querySelectorAll('.dropdown ul li a'))
+
+                $(document).ready(function() {
+                     currentTab = "pendingTab";
+
+
+                    $('#tabPending').click(function() {
+                        currentTab = "pendingTab";
+                    });
+
+                    $('#tabReviewed').click(function() {
+                        currentTab = "reviewedTab";
+                    });
+
+
+                    $(".dropdown-menu a").click(function(event) {
+                        event.preventDefault();
+                        console.log(currentTab);
+                        console.log(applicationListPending);
+                        console.log(applicationListReviewed);
+                        let filterType = event.target.getAttribute("data-value");
+                        let sortType = event.target.getAttribute("value");
+
+                        if (currentTab === "pendingTab") {
+                            applicationListPending = sortApplications(applicationListPending, sortType);
+                            applicationTeacherList(applicationListPending); // Cập nhật danh sách hiển thị
+                        } else if (currentTab === "reviewedTab") {
+                            applicationListReviewed = (applicationListReviewed, sortType);
+                            applicationReviewedTeacherList(applicationListReviewed); // Cập nhật danh sách hiển thị
+                        }
+                        console.log( "la gi" + filterType);
+                        if (filterType === "This Week") {
+                            if (currentTab === "pendingTab") {
+                                applicationTeacherList(applicationListPending, 'week');
+                            } else {
+                                applicationReviewedTeacherList(applicationListReviewed, 'week');
+                            }
+                        } else if (filterType === "This Month") {
+                            if (currentTab === "pendingTab") {
+                                applicationTeacherList(applicationListPending, 'month');
+                            } else {
+                                applicationReviewedTeacherList(applicationListReviewed, 'month');
+                            }
+                        } else if (filterType === "All Time") {
+                            if (currentTab === "pendingTab") {
+                                applicationTeacherList(applicationListPending,'all time');
+                            } else {
+                                applicationReviewedTeacherList(applicationListReviewed,'all time');
+                            }
+                        } else if (filterType === "filterProcessedWeek"){
+                            if(currentTab === "pendingTab"){
+
+                            } else {
+
+                            }
+                        } else if (filterType === "filterProcessedMonth"){
+
+                        }
+
+                            });
+                        });
+
+
+
+        });
+
+function sortApplications(applicationList, sortType) {
+            return applicationList.sort((a, b) => {
+                if (sortType === "sortCreatedNew") {
+                    return new Date(b.formattedCreateOn) - new Date(a.formattedCreateOn);
+                } else if (sortType === "sortCreatedOld") {
+                    return new Date(a.formattedCreateOn) - new Date(b.formattedCreateOn);
+                } else if (sortType === "sortProcessedNew") {
+                    return new Date(b.formattedProcessOn) - new Date(a.formattedProcessOn);
+                } else if (sortType === "sortProcessedOld") {
+                    return new Date(a.formattedProcessOn) - new Date(b.formattedProcessOn);
+                } else if (sortType === "sortByName") {
+                    return a.account.username.localeCompare(b.account.username);
+                }
+                return 0;
+            });
+        }
+
+
+
+        function getApplicationTeacherInfo(applicationId) {
+            stompClient.subscribe("/topic/application/detail", function (message) {
+                var application = JSON.parse(message.body);
+                console.log("Application received: ", application);
+                updateApplicationModal(application);
+            });
+            stompClient.send("/app/admin/application/get", {}, JSON.stringify(applicationId));
+        }
+        function updateApplicationModal(application) {
+            let divApplicationInfo = document.getElementById("basicInfo");
+            let divApplicationInfo2 = document.getElementById("paymentInfo");
+
+            divApplicationInfo.innerHTML = `
+        <table>
+            <tr><th>Username</th><td>${application.account.username}</td></tr>
+            <tr><th>Full Name</th><td>${application.name}</td></tr>
+            <tr><th>Email</th><td>${application.account.email}</td></tr>
+            <tr><th>Phone</th><td>${application.phone_number}</td></tr>
+            <tr><th>Date of Birth</th><td>${application.date_of_birth}</td></tr>
+        </table>`;
+
+            divApplicationInfo2.innerHTML = `
+        <table>
+            <tr><th>Citizen ID</th><td>${application.cccd}</td></tr>
+            <tr><th>Gender</th><td>${application.gender}</td></tr>
+            <tr><th>Bank Account</th><td>${application.bank_account}</td></tr>
+        </table>`;
+
+            let buttonContainer = document.getElementById('buttonApplicationInfo');
+            buttonContainer.innerHTML = `
+        <button data-id="${application.id}" class="btn btn-gradient-success" th:text="#{action.button.approve}">Approve</button>
+        <button data-id="${application.id}" name="confirmNo" class="btn btn-gradient-danger" th:text="#{action.button.reject}">Reject</button>
+    `;
+
+            if (application.status === 'Reviewed' || application.status === 'Rejected') {
+                buttonContainer.style.display = "none";
+            } else if (application.status === 'Pending') {
+                buttonContainer.style.display = "flex";
+            }
+
+            openTab('basicInfo');
+
+            const modalView = document.getElementById("modalView");
+            modalView.style.display = "flex";
+        }
+
+//         function updateApplicationModal(application) {
+//             let divApplicationInfo = document.getElementById("basicInfo");
+//             let divApplicationInfo2 = document.getElementById("paymentInfo");
+//
+//             divApplicationInfo.innerHTML = `
+//         <table>
+//             <tr><th>Username</th><td>${application.account.username}</td></tr>
+//             <tr><th>Full Name</th><td>${application.name}</td></tr>
+//             <tr><th>Email</th><td>${application.account.email}</td></tr>
+//             <tr><th>Phone</th><td>${application.phone_number}</td></tr>
+//             <tr><th>Date of Birth</th><td>${application.date_of_birth}</td></tr>
+//         </table>`;
+//
+//             divApplicationInfo2.innerHTML = `
+//         <table>
+//             <tr><th>Citizen ID</th><td>${application.cccd}</td></tr>
+//             <tr><th>Gender</th><td>${application.gender}</td></tr>
+//             <tr><th>Bank Account</th><td>${application.bank_account}</td></tr>
+//         </table>`;
+//
+//             let buttonContainer = document.getElementById('buttonApplicationInfo');
+//             buttonContainer.innerHTML = `
+//     <button data-id="${application.id}" name="confirmYes" class="btn btn-gradient-success" th:text="#{action.button.approve}">Approve</button>
+//     <button data-id="${application.id}" name="confirmNo" class="btn btn-gradient-danger" th:text="#{action.button.reject}">Reject</button>
+// `;
+//             if (application.status === 'Reviewed') {
+//                 buttonContainer.style.display = "none";
+//             } else if (application.status === 'Pending') {
+//                 buttonContainer.style.display = "flex";
+//             }
+//
+//             openTab('basicInfo');
+//
+//             const modalView = document.getElementById("modalView");
+//             modalView.style.display = "flex";
+//         }
+
+        function openTab(typeInfo) {
+
+            document.querySelectorAll('.tab-container a').forEach(tab => {
+
+                tab.classList.remove("active");
+            });
+
+            document.getElementById("basicInfo").style.display = "none";
+            document.getElementById("paymentInfo").style.display = "none";
+
+            if (typeInfo === 'basicInfo') {
+                document.getElementById("basicInfo").style.display = "flex";
+                document.getElementById("linkTabInfo").classList.add("active");
+            } else if (typeInfo === 'paymentInfo') {
+                document.getElementById("paymentInfo").style.display = "flex";
+                document.getElementById("linkTabPaymentInfo").classList.add("active");
+            }
+        }
+        function filterApplicationsByDate(applicationList, filterType) {
+            const now = new Date();
+            let filteredList = [];
+
+            applicationList.forEach(application => {
+                const createdDate = new Date(application.formattedCreateOn);
+                console.log(createdDate);
+                if (filterType === 'week') {
+                    const oneWeekAgo = new Date();
+                    oneWeekAgo.setDate(now.getDate() - 7);
+
+                    if (createdDate >= oneWeekAgo) {
+                        filteredList.push(application);
+                    }
+                }
+                else if (filterType === 'month') {
+                    const oneMonthAgo = new Date();
+                    oneMonthAgo.setMonth(now.getMonth() - 1);
+
+                    if (createdDate >= oneMonthAgo) {
+                        filteredList.push(application);
+                    }
+                }
+
+            });
+
+            console.log(filteredList);
+            return filteredList;
+        }
+
+
+
+        function applicationTeacherList(applicationList, filterType) {
+            if (filterType) {
+                applicationList = filterApplicationsByDate(applicationList, filterType);
+            }
+
+            $('#applicationList').empty();
+            applicationList.forEach(function (application) {
+                $('#applicationList').append(`
+            <tr>
+                <td>${application.id}</td>
+                <td>${application.account.username}</td>
+                <td>${application.account.email}</td>
+                <td>${application.formattedCreateOn}</td>
+                <td>
+                    <span class="status ${application.status === 'Pending' ? 'status-scheduled' :''}">
+                        ${application.status}
+                    </span>
+                </td>
+                <td>
+                    <button data-id="${application.id}" id="pending" class="btn btn-gradient-info"><i class="fa-solid fa-eye"></i></button>
+                </td>
+            </tr>`);
+            });
+
+            $('#applicationList tr td').css({ "align-content": "center" });
+        }
+
+        function applicationReviewedTeacherList(applicationList, filterType){
+            if (filterType) {
+                applicationList = filterApplicationsByDate(applicationList, filterType);
+            }
+            $('#applicationReviewedList').empty();
+            applicationList.forEach(function (application) {
+                $('#applicationReviewedList').append(`
+                        <tr>
+                        <td>${application.id}</td>
+                        <td>${application.account.username}</td>
+                        <td>${application.account.email}</td>
+                        <td>${application.formattedProcessOn}</td>
+                        <td>
+    <span class="status
+        ${application.status === 'Rejected' ? 'status-inactive' :
+                        application.status === 'Reviewed' ? 'status-publish' : ''}">
+        ${application.status}
+    </span>
+</td>
+                        <td>
+                            <button data-id="${application.id}" id="view reviewed" class="btn btn-gradient-info"><i class="fa-solid fa-eye"></i></button>
+                        </td>
+                    </tr>`)
+            })
+            $('#applicationList tr td').css({
+                    "align-content": "center"
+                }
+            )
+        }
+
+        function showTab(tabId, button) {
+            document.querySelectorAll('.content-wrapper .tab-content').forEach(tab => tab.style.display = 'none');
+
+            document.getElementById(tabId).style.display = 'block';
+
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+        }
+
+        function approveApplication(applicationId) {
+            stompClient.send("/app/admin/application/approve", {}, applicationId);
+            refreshApplicationLists();
+        }
+
+        function rejectApplication(applicationId) {
+            stompClient.send("/app/admin/application/reject", {}, applicationId);
+            refreshApplicationLists();
+        }
+        function refreshApplicationLists() {
+            stompClient.send("/app/admin/application",{},{});
+        }
+
+    </script>
+
+</head>
+<body>
+<div class="container-scroller">
+
+    <div th:replace="~{/view/admin/partials/_navbar :: _navbar}"></div>
+    <!-- partial -->
+    <div class="container-scroller">
+
+        <div th:replace="~{/view/admin/partials/_navbar :: _navbar}"></div>
+        <!-- partial -->
+        <div class="container-fluid page-body-wrapper">
+            <!-- partial:partials/_sidebar.html -->
+            <div th:replace="~{/view/admin/partials/_sidebar :: _sidebar}"></div>
+            <!-- partial -->
+            <div class="main-panel">
+                <ol class="breadcrumb mb-4">
+                    <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Users</li>
+                </ol>
+                <div class="filter-container">
+                    <label>
+                        <input type="text" id="search-input" class="search-input" placeholder="Search Username">
+                    </label>
+
+
+                    <div class="d-flex gap-2">
+                        <button style="background-color: #EAE4F3; border-radius: 10px;color:#6216FF" type="button" data-bs-toggle="dropdown">
+                            <i class="fa-solid fa-sort"></i> <span style="margin-right: 2px">Sort</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li class="dropdown">
+                                <a class="dropdown-item">Sort by Time Created</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" th:value="sortCreatedNew">Newest First</a></li>
+                                    <li><a class="dropdown-item" th:value="sortCreatedOld">Oldest First</a></li>
+                                </ul>
+                            </li>
+                            <li class="dropdown">
+                                <a class="dropdown-item">Sort by Time Processed</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" th:value="sortProcessedNew">Recent Processed</a></li>
+                                    <li><a class="dropdown-item" th:value="sortProcessedOld">Oldest Processed</a></li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                        <button style="background-color: #EAE4F3; color:#6216FF;border-radius: 10px" type="button" data-bs-toggle="dropdown">
+                            <i class="fa-solid fa-filter"></i> <span style="margin-right: 2px">Filter</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li class="dropdown">
+                                <a class="dropdown-item">Filter by Registration Time</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" data-value="This Week">This Week</a></li>
+                                    <li><a class="dropdown-item" data-value="This Month">This Month</a></li>
+                                    <li><a class="dropdown-item" data-value="All Time">All Time</a></li>
+
+                                </ul>
+                            </li>
+                            <li class="dropdown">
+                                <a class="dropdown-item">Filter by Processed Time</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" data-value="filterProcessedWeek">Processed This Week</a></li>
+                                    <li><a class="dropdown-item" data-value="filterProcessedMonth">Processed This Month</a></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+
+
+
+                </div>
+                <div class="tab-container">
+                    <button class="tab-button active" onclick="showTab('pendingTab', this)">Pending Applications</button>
+                    <button class="tab-button" onclick="showTab('reviewedTab', this)">Reviewed Applications</button>
+                </div>
+                <div class="content-wrapper">
+                <div id="pendingTab" class="tab-content">
+                    <h3>Pending Application</h3>
+                    <table class="table">
+                        <thead>
+                        <tr class="table-info">
+                            <th scope="col">ID</th>
+                            <th scope="col">Username</th>
+                            <th scope="col">Email</th>
+                            <th scope="col">Date</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody id="applicationList">
+
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="reviewedTab" class="tab-content" style="display: none;">
+                    <h3>Reviewed Application</h3>
+                    <table class="table">
+                        <thead>
+                        <tr class="table-info">
+                            <th scope="col">ID</th>
+                            <th scope="col">Username</th>
+                            <th scope="col">Email</th>
+                            <th scope="col">Processed Date</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody id="applicationReviewedList">
+
+                        </tbody>
+                    </table>
+                </div>
+                </div>
+
+
+                <div id="modalView" class="confirm-modal" style="display: none">
+                    <div class="confirm-modal-content1">
+                        <button class="btn btn-close" onclick="closeModal()">
+
+                        </button>
+
+                        <h3 th:text="#{application.teacher.view}"></h3>
+                        <div class="tab-container">
+                            <a class="tab-link active" id="linkTabInfo" onclick="openTab('basicInfo')" th:text="#{application.information.basic}"></a>
+                            <a class="tab-link" id="linkTabPaymentInfo" onclick="openTab('paymentInfo')" th:text="#{application.information.infoandpayment}"></a>
+                        </div>
+
+                        <div id="applicationInfo">
+                            <div id="basicInfo" class="tab-content active">
+
+
+                            </div>
+                            <div id="paymentInfo" class="tab-content">
+
+                            </div>
+                            <div id="buttonApplicationInfo" style="justify-content: space-around;">
+                                <button  th:text="#{action.button.approve}"></button>
+                                <button th:text="#{action.button.reject}"></button><div>
+                            </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+                </div>
+            </div>
+        <div th:replace="~{/view/admin/partials/_footer :: _footer}"></div>
+
+    </div>
+
+</div>
+
+
+<script th:src="@{js/vendor.bundle.base.js}"></script>
+<script th:src="@{js/vendor.bundle.addons.js}"></script>
+
+<script th:src="@{js/off-canvas.js}"></script>
+<script th:src="@{js/misc.js}"></script>
+
+<script th:src="@{js/dashboard.js}"></script>
+<!-- End custom js for this page-->
+</body>
+
+</html>
+

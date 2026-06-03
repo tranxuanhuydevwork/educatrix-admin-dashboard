@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Purple Admin</title>
+    <link rel="stylesheet" th:src="@{/css/materialdesignicons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/vendor.bundle.base.css}">
+    <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
+    <link th:href="@{/css/style.css}" rel="stylesheet" />
+    <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+    <link rel="shortcut icon" href="images/favicon.png" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+   <style>
+       body {
+           font-family: 'Poppins', sans-serif;
+           background: #f5f7fa;
+           color: #333;
+           transition: all 0.3s ease;
+       }
+
+       .container {
+           max-width: 1200px;
+       }
+
+       /* Card Styling */
+       .card {
+           border-radius: 12px;
+           box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+           border: none;
+           transition: transform 0.3s ease, box-shadow 0.3s ease;
+           padding: 20px;
+           margin-bottom: 20px;
+           background: #fff;
+       }
+
+       .card:hover {
+           transform: translateY(-5px);
+           box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+       }
+
+       .card h5 {
+           color: #4a4a4a;
+           font-weight: 600;
+           margin-bottom: 15px;
+           padding-bottom: 10px;
+           border-bottom: 1px solid #f0f0f0;
+       }
+
+       .dashboard-card {
+           padding: 24px;
+           border-radius: 12px;
+           box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+           margin-bottom: 20px;
+           position: relative;
+           overflow: hidden;
+           color: white;
+           display: flex;
+           flex-direction: column;
+           align-items: flex-start;
+           transition: transform 0.3s ease;
+       }
+
+       .dashboard-card:hover {
+           transform: translateY(-5px);
+       }
+
+       .dashboard-card .icon {
+           font-size: 36px;
+           margin-bottom: 12px;
+           opacity: 0.8;
+       }
+
+       .dashboard-card p {
+           font-size: 16px;
+           margin-bottom: 5px;
+           opacity: 0.9;
+       }
+
+       .dashboard-card h4 {
+           font-size: 26px;
+           font-weight: 700;
+           margin-bottom: 0;
+       }
+
+       .bg-custom-orange {
+           background: linear-gradient(135deg, #ff9f43, #ff7e1a);
+       }
+
+       .bg-custom-green {
+           background: linear-gradient(135deg, #20bf6b, #0fb55a);
+       }
+
+       .bg-custom-red {
+           background: linear-gradient(135deg, #eb3b5a, #fc5c65);
+       }
+
+       .bg-custom-blue {
+           background: linear-gradient(135deg, #4b7bec, #3867d6);
+       }
+
+       /* Tab Navigation */
+       .tab-buttons {
+           display: flex;
+           flex-wrap: wrap;
+           gap: 10px;
+           margin: 30px 0 20px;
+       }
+
+       .tab-button {
+           padding: 10px 24px;
+           background: #f7f7f7;
+           border: none;
+           border-radius: 50px;
+           color: #555;
+           font-weight: 500;
+           cursor: pointer;
+           transition: all 0.3s ease;
+           box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+       }
+
+       .tab-button:hover {
+           background: #f0f0f0;
+           transform: translateY(-2px);
+       }
+
+       .tab-button.active {
+           background: linear-gradient(135deg, #6f7bf7, #8244ff);
+           color: white;
+           box-shadow: 0 5px 15px rgba(108, 92, 231, 0.3);
+       }
+
+       .tab-content-section {
+           display: none;
+           opacity: 0;
+           transform: translateY(10px);
+           transition: opacity 0.3s, transform 0.3s;
+       }
+
+       .tab-content-section.active {
+           display: block;
+           opacity: 1;
+           transform: translateY(0);
+       }
+
+       .dark-mode {
+           background: #1a1a2e;
+           color: #f0f0f0;
+       }
+
+       .dark-mode .card {
+           background: #222232;
+           box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+       }
+
+       .dark-mode .card h5 {
+           color: #e1e1e1;
+           border-bottom: 1px solid #333345;
+       }
+
+       .dark-mode .tab-button {
+           background: #16213e;
+           color: #d1d1d1;
+       }
+
+       .dark-mode .tab-button:hover {
+           background: #1f305e;
+       }
+
+       .dark-mode .tab-button.active {
+           background: linear-gradient(135deg, #4b5efc, #6442ff);
+       }
+
+       canvas {
+           padding: 15px;
+           border-radius: 8px;
+       }
+
+       .switch-container {
+           position: fixed;
+           top: 15px;
+           right: 15px;
+           z-index: 1000;
+       }
+
+       .switch-toggle {
+           width: 60px;
+           height: 30px;
+           background: #e1e1e1;
+           border-radius: 30px;
+           position: relative;
+           cursor: pointer;
+           transition: 0.3s;
+           display: flex;
+           align-items: center;
+           justify-content: space-between;
+           padding: 0 8px;
+       }
+
+       @media (max-width: 768px) {
+           .dashboard-card {
+               margin-bottom: 15px;
+           }
+
+           .tab-button {
+               padding: 8px 15px;
+               font-size: 14px;
+           }
+
+           h3 {
+               font-size: 20px;
+           }
+       }
+
+       @media (max-width: 576px) {
+           .tab-buttons {
+               flex-direction: column;
+               gap: 5px;
+           }
+
+           .tab-button {
+               width: 100%;
+           }
+       }
+
+       /* Animation Effects */
+       @keyframes fadeIn {
+           from { opacity: 0; transform: translateY(20px); }
+           to { opacity: 1; transform: translateY(0); }
+       }
+
+       .content-wrapper {
+           animation: fadeIn 0.6s ease;
+       }
+   </style>
+    <script>
+        var labelStudentPerCourse = null;
+        var dataStudentPerCourse = null;
+        var visitorsAmount = null;
+        var totalAmountUser = null;
+        var totalRevenue = null;
+        var learnerAmount = null;
+        var lectureAmount = null;
+        var totalOrder = null;
+        var averageCompletionCourse = null;
+        var averageDropOut = null;
+        var avgRatings = null;
+        var ratingDistribution =null;
+        var categoryReviews = null;
+        const socket = new SockJS("/ws");
+        const stompClient = Stomp.over(socket);
+        $(document).ready(function(){
+            stompClient.connect({}, function (frame) {
+                stompClient.subscribe("/topic/dashboard", function (message) {
+                    var receive = JSON.parse(message.body);
+                    console.log(receive);
+                    labelStudentPerCourse = receive.listCategory;
+                    averageCompletionCourse = receive.averageCompletion;
+                    averageDropOut = receive.averageDropout;
+                    dataStudentPerCourse = receive.quantityLearnerOfCategory;
+                    totalAmountUser = receive.totalUserQuantity;
+                    totalOrder = receive.totalOrder;
+                    learnerAmount = receive.learnQuantity;
+                    lectureAmount = receive.lectureQuantity;
+                    totalRevenue = receive.totalRevenue;
+                    avgRatings = receive.avgRatings;
+                    ratingDistribution = receive.ratingDistribution;
+                    categoryReviews = receive.categoryReviews;
+                    console.log(labelStudentPerCourse);
+                    console.log(learnerAmount);
+                    console.log(lectureAmount);
+                    console.log(avgRatings);
+                    console.log(ratingDistribution);
+                    console.log(categoryReviews);
+                    getValue(totalRevenue, totalAmountUser, totalOrder);
+                    updateUserLearnerChart();
+
+                    updateCountRateChart(receive.getNumbersRateOfUsers);
+                    updateCompletionChart();
+                    updateAvgRatingChart(avgRatings);
+                    updateRatingDistributionChart(ratingDistribution);
+                    updateReviewsByCategoryChart(categoryReviews);
+                });
+
+                stompClient.send("/app/admin/statistics/dashboard", {}, {});
+                stompClient.subscribe("/topic/profit", function (message) {
+                    var data = JSON.parse(message.body);
+                    console.log(data);
+                    updateProfitCards(data);
+                    updateRevenueTimeChart(data.revenueTimeSeries);
+                    updateRevenueDistributionChart(data.revenueDistribution);
+                    updateRevenueByCategoryChart(data.revenueByCategory);
+                    updateRevenueByPaymentMethodChart(data.revenueByPaymentMethod);
+                    updateRevenueDetailsTable(data.revenueDetails);
+                    updateInstructorPaymentTable(data.instructorPayments);
+                });
+
+            });
+        });
+
+        function getValue(totalRevenue, totalAmountUser, totalOrder) {
+            document.getElementById("revenue").innerText = totalRevenue + " VND";
+            document.getElementById("users").innerText = totalAmountUser;
+            document.getElementById("orders").innerText = totalOrder;
+        }
+
+        function updateUserLearnerChart() {
+            const ctx1 = document.getElementById("userLearnerChart").getContext("2d");
+            console.log(ctx1);
+            if (window.userLearnerChart instanceof Chart) {
+                window.userLearnerChart.destroy();
+            }
+
+            window.userLearnerChart = new Chart(ctx1, {
+                type: "pie",
+                data: {
+                    labels: ["Learners", "Lecturers"],
+                    datasets: [{
+                        data: [
+                            (learnerAmount / totalAmountUser) * 100,
+                            (lectureAmount / totalAmountUser) * 100
+                        ],
+                        backgroundColor: ["#3498db", "#f39c12"],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: "bottom" },
+                        tooltip: {
+                            callbacks: {
+                                label: function (tooltipItem) {
+                                    return tooltipItem.raw.toFixed(2) + "%";
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        function updateCompletionChart() {
+            const ctx1 = document.getElementById("completionChart").getContext("2d");
+
+            if (window.completionChart instanceof Chart) {
+                window.completionChart.destroy();
+            }
+
+            window.completionChart = new Chart(ctx1, {
+                type: "pie",
+                data: {
+                    labels: ["Completion", "Drop Out"],
+                    datasets: [{
+                        data: [
+                            averageCompletionCourse,averageDropOut
+                        ],
+                        backgroundColor: ["#3498db", "#f39c12"],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: "bottom" },
+                        tooltip: {
+                            callbacks: {
+                                label: function (tooltipItem) {
+                                    return tooltipItem.raw.toFixed(2) + "%";
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCountRateChart(data) {
+            let labels = Object.keys(data).map(Number).sort((a, b) => a - b);
+
+            let values = Object.values(data);
+            if (window.ratingChart instanceof Chart) {
+                window.ratingChart.destroy();
+            }
+
+            let ctx = document.getElementById("ratingChart").getContext("2d");
+            window.ratingChart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "Number of Reviews",
+                        data: values,
+                        backgroundColor: "#3498db"
+                    }]
+                },
+                options: { responsive: true }
+            });
+        }
+        function updateTotalFeedbackChart(data) {
+            let labels = data.map(item => item.course_name);
+            let values = data.map(item => item.total_feedbacks);
+
+            if (window.totalFeedbackChart instanceof Chart) {
+                window.totalFeedbackChart.destroy();
+            }
+
+            let ctx = document.getElementById("totalFeedbackChart").getContext("2d");
+            window.totalFeedbackChart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "Total Reviews",
+                        data: values,
+                        backgroundColor: "#2ecc71"
+                    }]
+                },
+                options: { responsive: true }
+            });
+        }
+        function updateAvgRatingChart(data) {
+            let labels = Object.keys(data);
+            let values = Object.values(data);
+
+            if (window.avgRatingChart instanceof Chart) {
+                window.avgRatingChart.destroy();
+            }
+
+            let ctx = document.getElementById("avgRatingChart").getContext("2d");
+            window.avgRatingChart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "Trung bình số sao",
+                        data: values,
+                        backgroundColor: "#f39c12"
+                    }]
+                },
+                options: { responsive: true }
+            });
+        }
+
+        function updateRatingDistributionChart(data) {
+            let labels = Object.keys(data);
+            let values = Object.values(data);
+
+            if (window.ratingDistributionChart instanceof Chart) {
+                window.ratingDistributionChart.destroy();
+            }
+
+            let ctx = document.getElementById("ratingDistributionChart").getContext("2d");
+            window.ratingDistributionChart = new Chart(ctx, {
+                type: "pie",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "Số lượng đánh giá theo số sao",
+                        data: values,
+                        backgroundColor: ["#2ecc71", "#3498db", "#e74c3c", "#9b59b6", "#f1c40f"]
+                    }]
+                },
+                options: { responsive: true }
+            });
+        }
+
+        function updateReviewsByCategoryChart(data) {
+            let labels = Object.keys(data);
+            let values = Object.values(data);
+
+            if (window.reviewsByCategoryChart instanceof Chart) {
+                window.reviewsByCategoryChart.destroy();
+            }
+
+            let ctx = document.getElementById("reviewsByCategoryChart").getContext("2d");
+            window.reviewsByCategoryChart = new Chart(ctx, {
+                type: "doughnut",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "Số lượng đánh giá theo danh mục",
+                        data: values,
+                        backgroundColor: ["#1abc9c", "#e67e22", "#34495e"]
+                    }]
+                },
+                options: { responsive: true }
+            });
+        }
+
+
+
+        function updateProfitAnalysisData() {
+            stompClient.send("/app/admin/statistics/profit", {}, {});
+        }
+        function updateProfitCards(data) {
+            document.getElementById("totalRevenue").innerText = formatCurrency(data.totalRevenue) + " VND";
+            document.getElementById("platformProfit").innerText = formatCurrency(data.platformProfit) + " VND";
+
+            var totalTeacherPayment = 0;
+            data.instructorPayments.forEach(instructorPaymentElement => {
+                totalTeacherPayment += instructorPaymentElement.actualPayment;
+            });
+
+            document.getElementById("instructorPayments").innerText = formatCurrency(totalTeacherPayment) + " VND";
+            document.getElementById("taxPaid").innerText = formatCurrency(data.taxPaid) + " VND";
+        }
+
+        function updateRevenueTimeChart(data) {
+            const ctx = document.getElementById("revenueTimeChart").getContext("2d");
+
+            if (window.revenueTimeChart instanceof Chart) {
+                window.revenueTimeChart.destroy();
+            }
+
+            window.revenueTimeChart = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: "Doanh thu",
+                        data: data.totalRevenue,
+                        borderColor: "#2ecc71",
+                        fill: false,
+                        tension: 0.1
+                    }, {
+                        label: "Lợi nhuận platform",
+                        data: data.platformProfit,
+                        borderColor: "#3498db",
+                        fill: false,
+                        tension: 0.1
+                    }, {
+                        label: "Thanh toán giảng viên",
+                        data: data.instructorPayments,
+                        borderColor: "#f39c12",
+                        fill: false,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return formatCurrency(value) + " VND";
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateRevenueDistributionChart(data) {
+            const ctx = document.getElementById("revenueDistributionChart").getContext("2d");
+
+            if (window.revenueDistributionChart instanceof Chart) {
+                window.revenueDistributionChart.destroy();
+            }
+
+            window.revenueDistributionChart = new Chart(ctx, {
+                type: "pie",
+                data: {
+                    labels: [
+                        "Giảng viên (66.5%)",
+                        "Platform (30%)",
+                        "Thuế Web Service (5%)"
+                    ],
+                    datasets: [{
+                        data: [
+                            data.instructorShare,
+                            data.platformShare,
+                            data.taxAmount
+                        ],
+                        backgroundColor: [
+                            "#f39c12",
+                            "#3498db",
+                            "#e74c3c"
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: "bottom"
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ": " + formatCurrency(context.raw) + " VND";
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateRevenueByCategoryChart(data) {
+            const ctx = document.getElementById("revenueByCategoryChart").getContext("2d");
+
+            if (window.revenueByCategoryChart instanceof Chart) {
+                window.revenueByCategoryChart.destroy();
+            }
+
+            window.revenueByCategoryChart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{
+                        label: "Doanh thu",
+                        data: Object.values(data),
+                        backgroundColor: "#2ecc71"
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return formatCurrency(value) + " VND";
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateRevenueByPaymentMethodChart(data) {
+            const ctx = document.getElementById("revenueByPaymentMethodChart").getContext("2d");
+
+            if (window.revenueByPaymentMethodChart instanceof Chart) {
+                window.revenueByPaymentMethodChart.destroy();
+            }
+
+            window.revenueByPaymentMethodChart = new Chart(ctx, {
+                type: "doughnut",
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{
+                        data: Object.values(data),
+                        backgroundColor: ["#3498db", "#9b59b6", "#e74c3c", "#f39c12"]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: "bottom"
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ": " + formatCurrency(context.raw) + " VND";
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateRevenueDetailsTable(data) {
+            const tableBody = document.getElementById("revenueDetailsTableBody");
+            tableBody.innerHTML = "";
+
+            data.forEach(item => {
+                const row = document.createElement("tr");
+
+                row.innerHTML = `
+            <td>${item.period}</td>
+            <td>${formatCurrency(item.grossRevenue)} VND</td>
+            <td>${formatCurrency(item.vat)} VND</td>
+            <td>${formatCurrency(item.netRevenue)} VND</td>
+            <td>${formatCurrency(item.vnpayFee)} VND</td>
+            <td>${formatCurrency(item.webServiceTax)} VND</td>
+            <td>${formatCurrency(item.instructorPayment)} VND</td>
+            <td>${formatCurrency(item.platformProfit)} VND</td>
+        `;
+
+                tableBody.appendChild(row);
+            });
+        }
+
+        function updateInstructorPaymentTable(data) {
+            const tableBody = document.getElementById("instructorPaymentTableBody");
+            tableBody.innerHTML = "";
+
+            data.forEach(item => {
+                const row = document.createElement("tr");
+
+                let statusClass = "";
+                if (item.status === "Đã thanh toán") {
+                    statusClass = "text-success";
+                } else if (item.status === "Chờ thanh toán") {
+                    statusClass = "text-warning";
+                } else {
+                    statusClass = "text-danger";
+                }
+
+                row.innerHTML = `
+            <td>${item.instructorName}</td>
+            <td>${item.courseName}</td>
+            <td>${formatCurrency(item.grossRevenue)} VND</td>
+            <td>${item.studentCount}</td>
+            <td>70%</td>
+            <td>${formatCurrency(item.taxAmount)} VND</td>
+            <td>${formatCurrency(item.actualPayment)} VND</td>
+            <td class="${statusClass}">${item.status}</td>
+        `;
+
+                tableBody.appendChild(row);
+            });
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('vi-VN').format(value);
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const tabButtons = document.querySelectorAll(".tab-button");
+            const tabContents = document.querySelectorAll(".tab-content-section");
+
+            tabButtons.forEach(button => {
+                button.addEventListener("click", function() {
+                    const targetId = this.getAttribute("data-target");
+
+                    tabButtons.forEach(btn => btn.classList.remove("active"));
+                    tabContents.forEach(content => content.classList.remove("active"));
+
+                    this.classList.add("active");
+
+                    document.getElementById(targetId).classList.add("active");
+
+                    if (targetId === "profitAnalysis") {
+                        updateProfitAnalysisData();
+                    }
+                });
+            });
+
+
+                if (document.getElementById("profitAnalysis").classList.contains("active")) {
+                updateProfitAnalysisData();
+            }
+        });
+
+
+    </script>
+</head>
+<body>
+<div class="container-scroller">
+
+    <div th:replace="~{/view/admin/partials/_navbar :: _navbar}"></div>
+    <!-- partial -->
+    <div class="container-fluid page-body-wrapper">
+        <!-- partial:partials/_sidebar.html -->
+        <div th:replace="~{/view/admin/partials/_sidebar :: _sidebar}"></div>
+        <!-- partial -->
+        <div class="main-panel">
+            <div class="content-wrapper">
+                <div class="container mt-4">
+                    <h3>Dashboard</h3>
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <div class="dashboard-card bg-custom-orange">
+                                <i class="icon fas fa-users"></i>
+                                <p>Visitors</p>
+                                <h4 id="visitors">100</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="dashboard-card bg-custom-green">
+                                <i class="icon fas fa-dollar-sign"></i>
+                                <p>Revenue</p>
+                                <h4 id="revenue"> </h4>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="dashboard-card bg-custom-red">
+                                <i class="icon fas fa-newspaper"></i>
+                                <p>Users</p>
+                                <h4 id="users">1,303</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="dashboard-card bg-custom-blue">
+                                <i class="icon fas fa-check-circle"></i>
+                                <p>Orders</p>
+                                <h4 id="orders"></h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-buttons">
+                        <button class="tab-button active" data-target="profitAnalysis">💰 Profit Analysis</button>
+                        <button class="tab-button" data-target="userStatistics">📈 User Activity Statistics</button>
+                        <button class="tab-button" data-target="courseStatistics">📊 Course Statistics</button>
+                        <button class="tab-button" data-target="feedbackStatistics">📊 Feedback Statistics </button>
+
+                    </div>
+
+
+                    <div class="tab-contents">
+                        <!-- Profit Analysis Tab -->
+                        <div class="tab-content-section active" id="profitAnalysis">
+                            <div class="container mt-4">
+                                <h3>Profit Analysis</h3>
+
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="dashboard-card bg-custom-green">
+                                            <i class="icon fas fa-money-bill-wave"></i>
+                                            <p>Tổng doanh thu</p>
+                                            <h4 id="totalRevenue">0 VND</h4>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="dashboard-card bg-custom-blue">
+                                            <i class="icon fas fa-hand-holding-usd"></i>
+                                            <p>Lợi nhuận platform</p>
+                                            <h4 id="platformProfit">0 VND</h4>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="dashboard-card bg-custom-orange">
+                                            <i class="icon fas fa-user-tie"></i>
+                                            <p>Thanh toán giảng viên</p>
+                                            <h4 id="instructorPayments">0 VND</h4>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="dashboard-card bg-custom-red">
+                                            <i class="icon fas fa-receipt"></i>
+                                            <p>Thuế đã nộp</p>
+                                            <h4 id="taxPaid">0 VND</h4>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row mt-4">
+                                    <div class="col-md-8">
+                                        <div class="card">
+                                            <h5 class="text-center">📊 Biểu đồ doanh thu theo thời gian</h5>
+                                            <canvas id="revenueTimeChart" style="max-height: 300px;"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card">
+                                            <h5 class="text-center">📊 Phân bổ doanh thu</h5>
+                                            <canvas id="revenueDistributionChart" style="max-height: 300px;"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row mt-4">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <h5 class="text-center">📊 Doanh thu theo danh mục khóa học</h5>
+                                            <canvas id="revenueByCategoryChart" style="max-height: 300px;"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <h5 class="text-center">📊 Doanh thu theo phương thức thanh toán</h5>
+                                            <canvas id="revenueByPaymentMethodChart" style="max-height: 300px;"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row mt-4">
+                                    <div class="col-md-12">
+                                        <div class="card">
+                                            <h5 class="text-center">📋 Chi tiết doanh thu và lợi nhuận</h5>
+                                            <div class="table-responsive">
+                                                <table class="table table-striped">
+                                                    <thead>
+                                                    <tr>
+                                                        <th>Khoảng thời gian</th>
+                                                        <th>Doanh thu gộp</th>
+                                                        <th>VAT (10%)</th>
+                                                        <th>Doanh thu thuần</th>
+                                                        <th>Phí VNPAY</th>
+                                                        <th>Thuế Web Service (5%)</th>
+                                                        <th>Thanh toán giảng viên (66.5%)</th>
+                                                        <th>Lợi nhuận platform (30%)</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody id="revenueDetailsTableBody">
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row mt-4">
+                                    <div class="col-md-12">
+                                        <div class="card">
+                                            <h5 class="text-center">📋 Chi tiết thanh toán cho giảng viên</h5>
+                                            <div class="table-responsive">
+                                                <table class="table table-striped">
+                                                    <thead>
+                                                    <tr>
+                                                        <th>Giảng viên</th>
+                                                        <th>Khóa học</th>
+                                                        <th>Doanh thu gộp</th>
+                                                        <th>Số lượng học viên</th>
+                                                        <th>Tỷ lệ chia sẻ</th>
+                                                        <th>Thuế khấu trừ (5%)</th>
+                                                        <th>Thanh toán thực tế</th>
+                                                        <th>Trạng thái</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody id="instructorPaymentTableBody">
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-content-section" id="userStatistics">
+                            <div class="container mt-4">
+                                <h3 class="text-center">📈 User Statistics</h3>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <h5 class="text-center">📅 Weekly User Visits</h5>
+                                            <canvas id="userFrequencyChart" style="max-height: 300px;"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <h5 class="text-center">🎓 Students Per Course</h5>
+                                            <canvas id="studentChart" style="max-height: 300px;"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <h5 class="text-center">👥 User & Learner Ratio</h5>
+                                            <canvas id="userLearnerChart" style="max-height: 300px;"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-content-section" id="courseStatistics">
+                            <div class="container mt-4">
+                                <h3 class="text-center">🎓 Course Statistics</h3>
+                                <div class="row">
+                                    <div class="col-lg-6 col-md-6">
+                                        <div class="card">
+                                            <h5 class="text-center">⏳ Completion Rate</h5>
+                                            <canvas id="completionChart" style="max-height: 250px;"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-6 col-md-6">
+                                        <div class="card">
+                                            <h5 class="text-center">⭐ Course Ratings</h5>
+                                            <canvas id="ratingChart" style="max-height: 250px;"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mt-4">
+                                    <div class="col-lg-6 col-md-6">
+                                        <div class="card">
+                                            <h5 class="text-center">⭐ Average Course Ratings</h5>
+                                            <canvas id="avgRatingChart" style="max-height: 250px;"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mt-4">
+                                    <div class="col-lg-6 col-md-6">
+                                        <div class="card">
+                                            <h5 class="text-center">📊 Rating Distribution</h5>
+                                            <canvas id="ratingDistributionChart" style="max-height: 250px;"></canvas>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-6 col-md-6">
+                                        <div class="card">
+                                            <h5 class="text-center">📖 Reviews per Category</h5>
+                                            <canvas id="reviewsByCategoryChart" style="max-height: 250px;"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div class="tab-content-section" id="feedbackStatistics">
+                            <div class="container mt-4">
+                                <h3 class="text-center">⭐ Feedback Statistics</h3>
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="card">
+                                            <h5 class="text-center">📝 User Feedback</h5>
+                                            <canvas id="feedbackChart" style="max-height: 300px;"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                </div>
+            </div>
+            <div th:replace="~{/view/admin/partials/_footer :: _footer}"></div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- container-scroller -->
+
+<!-- plugins:js -->
+<script th:src="@{/js/vendor.bundle.base.js}"></script>
+<script th:src="@{/js/vendor.bundle.addons.js}"></script>
+<script th:src="@{/js/off-canvas.js}"></script>
+<script th:src="@{/js/misc.js}"></script>
+<script th:src="@{/js/dashboard.js}"></script>
+<!-- End custom js for this page-->
+</body>
+
+</html>

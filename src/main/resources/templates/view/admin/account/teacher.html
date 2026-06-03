@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Purple Admin</title>
+    <link rel="stylesheet" th:src="@{/css/materialdesignicons.min.css}">
+    <link rel="stylesheet" th:href="@{/css/teacher.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="static/css/vendor.bundle.base.css">
+    <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
+    <link th:href="@{/css/style.css}" rel="stylesheet" />
+    <link th:href="@{/css/style111.css}" rel="stylesheet" />
+    <link th:href="@{/css/chatopenai.css}" rel="stylesheet"/>
+
+    <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+    <link rel="shortcut icon" href="images/favicon.png" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+<script th:src="@{/js/chat.js}"></script>
+  <script>
+
+      console.log(typeof bootstrap);
+
+
+      let count = 0;
+      let selectedUserId = null;
+      let actionCurrent = null;
+
+      function checkBox(accountStatus) {
+          if(accountStatus === 'Active') {
+              const bulkBan = document.getElementById('bulkBan');
+              let selectedItems = document.querySelectorAll('input[type="checkbox"]:checked');
+              count = selectedItems.length;
+
+              bulkBan.textContent = `Bulk Ban (${count})`;
+          } else if(accountStatus === 'Banned'){
+              const bulkUnban = document.getElementById('bulkUnban');
+              let selectedItems = document.querySelectorAll('input[type="checkbox"]:checked');
+              count = selectedItems.length;
+
+              bulkUnban.textContent = `Bulk Unban (${count})`;
+          }
+      }
+
+      var socket = new SockJS('/ws');
+      var stompClient = Stomp.over(socket);
+
+      stompClient.connect({}, function () {
+          console.log("✅ Kết nối WebSocket thành công!");
+
+          stompClient.subscribe('/topic/teacher', function (message) {
+              var users = JSON.parse(message.body);
+              console.log("📥 Danh sách users:", users);
+
+              updateItemList(users);
+          });
+
+          stompClient.send("/app/admin/users/teacher", {}, {});
+      });
+
+
+
+      function showTab(tabId, element) {
+          document.getElementById("activeAccountTab").parentElement.style.display = "none";
+          document.getElementById("bannedAccountTab").parentElement.style.display = "none";
+
+          document.getElementById(tabId).parentElement.style.display = "block";
+
+          document.querySelectorAll(".tab-button").forEach(btn => btn.classList.remove("active"));
+          element.classList.add("active");
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+
+          showTab('activeAccountTab', document.querySelector('.tab-button.active'));
+
+          const createButton = document.querySelector('.btn-primary');
+          console.log(createButton);
+
+          const modalCreate = document.getElementById("createOrUpdateUserModal");
+          const confirmYes = document.getElementsByName("confirmYes");
+          const confirmNo = document.getElementsByName("confirmNo");
+          let userListDiv = document.getElementById("userList");
+          console.log("🔍 Input element:", document.getElementById("search-input"));
+
+          document.getElementById("search-input").addEventListener("input", function () {
+              let searchValue = this.value.trim();
+              console.log("Sending search query: ", searchValue);
+              stompClient.send("/app/admin/users/filter", {}, searchValue);
+          });
+
+          document.querySelectorAll("dropdown-item").forEach(link => {
+              link.addEventListener("click", function (event) {
+                  event.preventDefault();
+
+                  document.querySelectorAll(".dropdown-item").forEach(item =>
+                      item.classList.remove("active")
+                  );
+
+                  this.classList.add("active");
+
+                  let sortBy = this.textContent.trim();
+                  console.log(sortBy);
+
+                  stompClient.send("/app/admin/users/filter", {}, sortBy);
+              });
+          });
+
+          const confirmText = document.getElementById("confirmText");
+          const confirmBtn = document.getElementById("confirmBanBtn");
+
+          confirmText.addEventListener("input", function () {
+              confirmBtn.disabled = this.value.trim().toUpperCase() !== "CONFIRM";
+          });
+
+          const confirmBanModal = new bootstrap.Modal(document.getElementById('confirmBanModal'));
+
+          document.getElementById('confirmBanModal').addEventListener('shown.bs.modal', function () {
+              confirmText.focus();
+          });
+
+          document.getElementById('confirmBanModal').addEventListener('hidden.bs.modal', function () {
+              confirmText.value = "";
+              confirmBtn.disabled = true;
+          });
+
+          document.getElementById("accountList").addEventListener("click", function (event) {
+              if (event.target.classList.contains("fa-eye") ||
+                  (event.target.closest("a") && event.target.closest("a").classList.contains("btn-info"))) {
+                  event.preventDefault();
+                  event.stopPropagation();
+
+                  console.log("View button clicked");
+
+                  let button = event.target.closest("a");
+                  let row = button.closest("tr");
+                  let checkbox = row.querySelector('input[type="checkbox"]');
+                  let userId = checkbox.getAttribute("data-id");
+                  let role = checkbox.getAttribute("data-role");
+
+                  console.log("User ID:", userId);
+                  console.log("Role:", role);
+
+                  if (role === "Teacher") {
+                      const teacherDetailsModal = new bootstrap.Modal(document.getElementById('teacherDetailsModal'));
+                      teacherDetailsModal.show();
+                      requestTeacherDetails(userId);
+                  }
+
+                  return;
+              }
+
+              if (event.target.classList.contains("btn-danger") ||
+                  (event.target.closest("button") && event.target.closest("button").classList.contains("btn-danger"))) {
+                  actionCurrent = "ban";
+              } else if (event.target.classList.contains("btn-light") ||
+                  (event.target.closest("button") && event.target.closest("button").classList.contains("btn-light"))) {
+                  document.getElementById("title-modal").innerText = "Xác nhận mở người dùng";
+                  actionCurrent = "unban";
+              }
+
+              if (actionCurrent === "ban" || actionCurrent === "unban") {
+                  event.preventDefault();
+                  const confirmBanModal = new bootstrap.Modal(document.getElementById('confirmBanModal'));
+                  confirmBanModal.show();
+
+                  let button = event.target.closest('button');
+                  selectedUserId = button.getAttribute("data-id");
+
+                  let row = button.closest('tr');
+                  let checkbox = row.querySelector('input[type="checkbox"]');
+
+                  $('#userList').empty();
+                  let userInfo = `
+            <div class="user-info p-2 border-bottom">
+                <p><strong>ID:</strong><span id="useridban">${checkbox.getAttribute("data-id")}</span></p>
+                <p><strong>Username:</strong><span id="usernameban">${checkbox.getAttribute("data-username")}</span></p>
+                <p><strong>Email:</strong><span id="emailban">${checkbox.getAttribute("data-email")}</span></p>
+                <p><strong>Role:</strong><span id="roleban">${checkbox.getAttribute("data-role")}</span></p>
+                <p><strong>Status:</strong><span id="statusCurrent">${checkbox.getAttribute("data-status")}</span></p>
+            </div>
+        `;
+                  document.getElementById('userList').innerHTML += userInfo;
+              }
+          });
+
+          var banIdList = [];
+
+          document.getElementById("bulkBan").addEventListener("click", function (event) {
+              let selectedItems = document.querySelectorAll('input[type="checkbox"]:checked');
+
+              $('#userList').empty();
+              selectedItems.forEach(function (checkbox) {
+                  let id = checkbox.getAttribute("data-id");
+                  let username = checkbox.getAttribute("data-username");
+                  let password = checkbox.getAttribute("data-password");
+                  let role = checkbox.getAttribute("data-role");
+                  let status = checkbox.getAttribute("data-status");
+                  let email = checkbox.getAttribute("data-email");
+                  console.log(id);
+                  banIdList.push(id);
+
+                  let userInfo = `
+                <div class="user-info p-2 border-bottom">
+                    <p><strong>ID:</strong><span id="useridban"> ${id}</span></p>
+                    <p><strong>Username:</strong><span id="usernameban"> ${username}</span></p>
+                    <p><strong>Password:</strong><span id="passwordban"> ${password}</span></p>
+                    <p><strong>Role:</strong><span id="roleban"> ${role}</span></p>
+                    <p><strong>Email:</strong><span id="emailban"> ${email}</span></p>
+                    <p><strong>Status:</strong><span id="statusCurrent"> ${status}</span></p>
+                </div>
+            `;
+                  document.getElementById('previousStatus').value = status;
+                  userListDiv.innerHTML += userInfo;
+              });
+
+              confirmBanModal.show();
+              actionCurrent = "ban";
+              console.log(actionCurrent);
+          });
+
+          var unbanIdList = [];
+
+          document.getElementById("bulkUnban").addEventListener("click", function (event) {
+              let selectedItems = document.querySelectorAll('input[type="checkbox"]:checked');
+
+              $('#userList').empty();
+              selectedItems.forEach(function (checkbox) {
+                  let id = checkbox.getAttribute("data-id");
+                  let username = checkbox.getAttribute("data-username");
+                  let password = checkbox.getAttribute("data-password");
+                  let role = checkbox.getAttribute("data-role");
+                  let status = checkbox.getAttribute("data-status");
+                  let email = checkbox.getAttribute("data-email");
+                  console.log(id);
+                  unbanIdList.push(id);
+
+                  let userInfo = `
+                <div class="user-info p-2 border-bottom">
+                    <p><strong>ID:</strong><span id="useridban"> ${id}</span></p>
+                    <p><strong>Username:</strong><span id="usernameban"> ${username}</span></p>
+                    <p><strong>Password:</strong><span id="passwordban"> ${password}</span></p>
+                    <p><strong>Email:</strong><span id="emailban"> ${email}</span></p>
+                    <p><strong>Role:</strong><span id="roleban"> ${role}</span></p>
+                    <p><strong>Status:</strong><span id="statusCurrent"> ${status}</span></p>
+                </div>
+            `;
+                  document.getElementById('previousStatus').value = status;
+                  userListDiv.innerHTML += userInfo;
+              });
+
+              confirmBanModal.show();
+              actionCurrent = "unban";
+              console.log(actionCurrent);
+          });
+          let teacherDetailsSocket;
+
+
+
+          function requestTeacherDetails(userId) {
+              setTeacherDetailsLoading(true);
+
+              if (teacherDetailsSocket && teacherDetailsSocket.readyState === WebSocket.OPEN) {
+                  teacherDetailsSocket.close();
+              }
+
+              teacherDetailsSocket = new SockJS('/ws');
+              let detailsStompClient = Stomp.over(teacherDetailsSocket);
+
+              detailsStompClient.connect({}, function() {
+                  console.log("✅ Connected to WebSocket for teacher details");
+
+                  detailsStompClient.subscribe('/topic/teacherDetails', function(message) {
+                      const teacherDetails = JSON.parse(message.body);
+                      console.log("📥 Received teacher details:", teacherDetails);
+
+                      updateTeacherDetailsModal(teacherDetails);
+                      setTeacherDetailsLoading(false);
+                  });
+
+                  detailsStompClient.send("/app/admin/users/teacherDetails", {}, userId);
+              });
+          }
+
+          function setTeacherDetailsLoading(isLoading) {
+              if (isLoading) {
+                  document.getElementById("teacherDetailsLoading").classList.remove("d-none");
+                  document.getElementById("teacherDetailsContent").classList.add("d-none");
+              } else {
+                  document.getElementById("teacherDetailsLoading").classList.add("d-none");
+                  document.getElementById("teacherDetailsContent").classList.remove("d-none");
+              }
+          }
+
+          function updateTeacherDetailsModal(teacherDetails) {
+              console.log("Teacher Details Received:", teacherDetails);
+
+              document.getElementById("teacherName").textContent = teacherDetails.username;
+              console.log("Teacher Name:", teacherDetails.username);
+
+              document.getElementById("teacherEmail").textContent = teacherDetails.email;
+              console.log("Teacher Email:", teacherDetails.email);
+
+              document.getElementById("teacherId").textContent = teacherDetails.id;
+              console.log("Teacher ID:", teacherDetails.id);
+
+              document.getElementById("teacherUsername").textContent = teacherDetails.username;
+              console.log("Teacher Username:", teacherDetails.username);
+
+              document.getElementById("teacherEmailDetail").textContent = teacherDetails.email;
+              console.log("Teacher Email Detail:", teacherDetails.email);
+
+              if (teacherDetails.profile && teacherDetails.profile.image_id) {
+                  document.getElementById("teacherAvatar").src = "/images/avatars/" + teacherDetails.profile.image_id;
+                  console.log("Teacher Avatar URL:", "/images/avatars/" + teacherDetails.profile.image_id);
+              } else {
+                  document.getElementById("teacherAvatar").src = "/images/default-avatar.png";
+                  console.log("Teacher Avatar: Default Avatar Used");
+              }
+
+              const statusElement = document.getElementById("teacherStatus");
+              const statusDetailElement = document.getElementById("teacherStatusDetail");
+              console.log("Teacher Status:", teacherDetails.status);
+
+              if (teacherDetails.status === "Active") {
+                  statusElement.className = "badge bg-success px-3 py-2";
+                  statusDetailElement.className = "badge bg-success";
+              } else {
+                  statusElement.className = "badge bg-danger px-3 py-2";
+                  statusDetailElement.className = "badge bg-danger";
+              }
+              statusElement.textContent = teacherDetails.status;
+              statusDetailElement.textContent = teacherDetails.status;
+              let linkBio = "";
+              teacherDetails.listLinkSocial.forEach(linksocial => {
+                  linkBio += linksocial.typeSocialLink + ": " + `<a href="${linksocial.linkPath}" target="_blank">${linksocial.linkPath}</a><br>` + "\n";
+                  console.log(linkBio);
+              });
+
+              document.getElementById("teacherBio").innerHTML = linkBio;
+              const roleElement = document.getElementById("teacherRole");
+              roleElement.textContent = teacherDetails.role.role_id;
+              console.log("Teacher Role ID:", teacherDetails.role.role_id);
+
+              if (teacherDetails.profile) {
+                  document.getElementById("teacherFullName").textContent = teacherDetails.profile.displayName || "Not provided";
+                  console.log("Teacher Full Name:", teacherDetails.profile.displayName || "Not provided");
+
+                  document.getElementById("teacherDescription").textContent = teacherDetails.profile.description || "No description available";
+                  console.log("Teacher Description:", teacherDetails.profile.description || "No description available");
+
+              } else {
+                  document.getElementById("teacherFullName").textContent = "Not provided";
+                  document.getElementById("teacherDescription").textContent = "No description available";
+                  console.log("Teacher Full Name: Not provided");
+                  console.log("Teacher Description: No description available");
+              }
+
+              if (teacherDetails.teacherRegistration) {
+                  const reg = teacherDetails.teacherRegistration;
+                  console.log("Teacher Registration Details:", reg);
+
+                  document.getElementById("regFirstName").textContent = reg.first_name || "N/A";
+                  console.log("First Name:", reg.first_name || "N/A");
+
+                  document.getElementById("regLastName").textContent = reg.last_name || "N/A";
+                  console.log("Last Name:", reg.last_name || "N/A");
+
+                  document.getElementById("regCCCD").textContent = reg.cccd || "N/A";
+                  console.log("CCCD:", reg.cccd || "N/A");
+
+                  document.getElementById("regPhoneNumber").textContent = reg.phone_number || "N/A";
+                  console.log("Phone Number:", reg.phone_number || "N/A");
+
+                  document.getElementById("teacherPhone").textContent = reg.phone_number || "N/A";
+                  console.log("Teacher Phone:", reg.phone_number || "N/A");
+
+                  document.getElementById("regGender").textContent = reg.gender || "N/A";
+                  console.log("Gender:", reg.gender || "N/A");
+
+                  document.getElementById("teacherGender").textContent = reg.gender || "N/A";
+                  console.log("Teacher Gender:", reg.gender || "N/A");
+
+                  document.getElementById("regDateOfBirth").textContent = reg.date_of_birth || "N/A";
+                  console.log("Date of Birth:", reg.date_of_birth || "N/A");
+
+                  document.getElementById("teacherDob").textContent = reg.date_of_birth || "N/A";
+                  console.log("Teacher DOB:", reg.date_of_birth || "N/A");
+
+                  document.getElementById("regBankAccount").textContent = reg.bank_account || "N/A";
+                  console.log("Bank Account:", reg.bank_account || "N/A");
+
+                  document.getElementById("regReason").textContent = reg.reason || "No reason provided";
+                  console.log("Registration Reason:", reg.reason || "No reason provided");
+
+                  document.getElementById("regCreatedTime").textContent = reg.formattedCreateOn || "N/A";
+                  console.log("Registration Created Time:", reg.formattedCreateOn || "N/A");
+
+                  document.getElementById("regProcessedTime").textContent = reg.formattedProcessOn || "N/A";
+                  console.log("Registration Processed Time:", reg.formattedProcessOn || "N/A");
+
+                  const regStatusElement = document.getElementById("regStatus");
+                  regStatusElement.textContent = reg.status || "N/A";
+                  console.log("Registration Status:", reg.status || "N/A");
+
+                  if (reg.status === "Approved") {
+                      regStatusElement.className = "badge bg-success";
+                  } else if (reg.status === "Pending") {
+                      regStatusElement.className = "badge bg-warning";
+                  } else if (reg.status === "Rejected") {
+                      regStatusElement.className = "badge bg-danger";
+                  } else {
+                      regStatusElement.className = "badge bg-secondary";
+                  }
+              }
+
+              document.getElementById("userCreatedDate").textContent = formatDate(teacherDetails.createdDate) || "Not available";
+              console.log("User Created Date:", formatDate(teacherDetails.createdDate) || "Not available");
+
+              document.getElementById("userLastLogin").textContent = formatDate(teacherDetails.lastLogin) || "Not available";
+              console.log("User Last Login:", formatDate(teacherDetails.lastLogin) || "Not available");
+
+              updateTeacherCourses(teacherDetails.courses);
+              console.log("Courses Data:", teacherDetails.courses);
+
+              updateTeacherStatistics(teacherDetails);
+              console.log("Teacher Statistics Data:", teacherDetails);
+          }
+
+          function updateTeacherCourses(courses) {
+              const coursesList = document.getElementById("teacherCoursesList");
+              const noCourses = document.getElementById("noCourses");
+              const courseCount = document.getElementById("courseCount");
+
+              coursesList.innerHTML = "";
+
+              if (courses && courses.length > 0) {
+                  noCourses.classList.add("d-none");
+                  courseCount.textContent = courses.length;
+
+                  courses.forEach(course => {
+                      const row = document.createElement("tr");
+                    console.log(course);
+                      let ratingStars = '';
+                      const rating = course.rating || 0;
+                      for (let i = 1; i <= 5; i++) {
+                          if (i <= rating) {
+                              ratingStars += '<i class="fa fa-star text-warning"></i>';
+                          } else if (i - 0.5 <= rating) {
+                              ratingStars += '<i class="fa fa-star-half-alt text-warning"></i>';
+                          } else {
+                              ratingStars += '<i class="far fa-star text-warning"></i>';
+                          }
+                      }
+                      let courseCatgory = "";
+                      course.categories.forEach(category => {
+                          courseCatgory += category.name+ "; ";
+                      })
+
+                      let statusBadge = '';
+                      if (course.status === "Published") {
+                          statusBadge = '<span class="badge bg-success">Published</span>';
+                      } else if (course.status === "Draft") {
+                          statusBadge = '<span class="badge bg-warning">Draft</span>';
+                      } else if (course.status === "Under Review") {
+                          statusBadge = '<span class="badge bg-info">Under Review</span>';
+                      } else {
+                          statusBadge = '<span class="badge bg-secondary">' + (course.status || "N/A") + '</span>';
+                      }
+
+                      row.innerHTML = `
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <img src="${course.image_id || '/images/course-default.png'}" class="rounded me-2" width="40" height="40" alt="Course">
+                            <div>
+                                <p class="mb-0 fw-medium">${course.courseName || "Untitled Course"}</p>
+                                <small class="text-muted">${course.courseCode || "No code"}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${courseCatgory}</td>
+                    <td>${formatCurrency(course.price) || "Free"}</td>
+                    <td>${course.enrollments || 0}</td>
+                    <td>${ratingStars} <span class="ms-1">(${course.rating || 0})</span></td>
+                    <td>${statusBadge}</td>
+                `;
+
+                      coursesList.appendChild(row);
+                  });
+              } else {
+                  noCourses.classList.remove("d-none");
+                  courseCount.textContent = "0";
+              }
+          }
+
+          function updateTeacherStatistics(teacherDetails) {
+              let totalStudents = 0;
+              let totalReviews = 0;
+              let totalRating = 0;
+
+              if (teacherDetails.courses && teacherDetails.courses.length > 0) {
+                  teacherDetails.courses.forEach(course => {
+                      totalStudents += course.totalEnrolled || 0;
+                      totalReviews += course.totalReviewed || 0;
+                      totalRating += (course.rating || 0) * (course.totalReviewed || 0);
+                  });
+              }
+
+              document.getElementById("totalStudents").textContent = totalStudents;
+              document.getElementById("totalReviews").textContent = totalReviews;
+
+              const avgRating = totalReviews > 0 ? (totalRating / totalReviews).toFixed(1) : "0.0";
+              document.getElementById("avgRating").textContent = avgRating;
+          }
+
+          function formatDate(dateString) {
+              if (!dateString) return null;
+
+              const date = new Date(dateString);
+              return date.toLocaleString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+              });
+          }
+
+          function formatCurrency(amount) {
+              if (amount === null || amount === undefined) return null;
+
+              return new Intl.NumberFormat('vi-VN', {
+                  style: 'currency',
+                  currency: 'VND',
+
+              }).format(amount);
+          }
+
+          confirmYes.forEach(function (button) {
+              button.addEventListener('click', function () {
+                  if (actionCurrent === 'ban') {
+                      console.log(actionCurrent);
+                      var selectedUsers = createAccountHistoryStatus();
+                      var newHistory = getHistoryStatus(selectedUsers);
+                      console.log(newHistory);
+                      const bsConfirmBanModal = bootstrap.Modal.getInstance(document.getElementById('confirmBanModal'));
+                      bsConfirmBanModal.hide();
+                      if (selectedUsers) {
+                          stompClient.send("/app/admin/users/delete", {}, JSON.stringify(selectedUsers));
+                          setTimeout(() => {
+                              stompClient.send("/app/admin/users/recordHistory", {}, JSON.stringify(newHistory));
+                          }, 500);
+                      }
+                  } else if (actionCurrent === 'update') {
+                      if (selectedUserId) {
+                          updateUser();
+                          const bsModalUpdate = bootstrap.Modal.getInstance(modalUpdate);
+                          bsModalUpdate.hide();
+                      }
+                  } else if (actionCurrent === 'unban') {
+                      console.log(actionCurrent);
+                      var selectedUsers = createAccountHistoryStatus();
+                      var newHistory = getHistoryStatus(selectedUsers);
+                      console.log(newHistory);
+                      const bsConfirmBanModal = bootstrap.Modal.getInstance(document.getElementById('confirmBanModal'));
+                      bsConfirmBanModal.hide();
+                      if (selectedUsers) {
+                          stompClient.send("/app/admin/users/unban", {}, JSON.stringify(selectedUsers));
+                          setTimeout(() => {
+                              stompClient.send("/app/admin/users/recordHistory", {}, JSON.stringify(newHistory));
+                          }, 500);
+                      }
+                  }
+              });
+          });
+
+          confirmNo.forEach(function (button) {
+              button.addEventListener('click', function () {
+                  const bsModalCreate = bootstrap.Modal.getInstance(modalCreate);
+                  if (bsModalCreate) bsModalCreate.hide();
+
+                  const bsConfirmBanModal = bootstrap.Modal.getInstance(document.getElementById('confirmBanModal'));
+                  if (bsConfirmBanModal) bsConfirmBanModal.hide();
+
+                  const bsModalUpdate = bootstrap.Modal.getInstance(modalUpdate);
+                  if (bsModalUpdate) bsModalUpdate.hide();
+              });
+          });
+
+          $('#confirmText').on('input', function () {
+              var inputVal = $(this).val();
+              if (inputVal === 'CONFIRM') {
+                  $('#confirmBanBtn').prop('disabled', false);
+              } else {
+                  $('#confirmBanBtn').prop('disabled', true);
+              }
+          });
+
+          createButton.addEventListener('click', function (event) {
+              actionCurrent = "create";
+              event.preventDefault();
+              const bsModalCreate = new bootstrap.Modal(modalCreate);
+              bsModalCreate.show();
+              document.getElementById('modal-title').innerText = "Create New User";
+              console.log(actionCurrent);
+          });
+
+          const modalUpdate = document.getElementById("createOrUpdateUserModal");
+          document.getElementById("accountList").addEventListener('click', function (event) {
+              if (event.target.classList.contains('btn-warning')) {
+                  console.log(event.target.classList.contains('btn-warning'));
+                  document.getElementById('modal-title').innerText = "Update User";
+                  actionCurrent = "update";
+                  event.preventDefault();
+                  const bsModalUpdate = new bootstrap.Modal(modalUpdate);
+                  bsModalUpdate.show();
+                  selectedUserId = event.target.getAttribute('data-id');
+                  console.log(selectedUserId);
+                  console.log(actionCurrent);
+                  let row = event.target.closest('tr');
+
+                  document.getElementById("username").value = row.children[2].textContent.trim();
+                  document.getElementById("password").value = row.children[3].textContent.trim();
+                  document.getElementById("role").value = row.children[4].textContent.trim();
+                  document.getElementById("status").value = row.children[5].textContent.trim();
+              }
+          });
+
+          actionCurrent = null;
+
+          $(document).ready(() => {
+              const avatarFile = $("#avatarFile");
+              avatarFile.change(function (e) {
+                  const imgURL = URL.createObjectURL(e.target.files[0]);
+                  $("#avatarPreview").attr("src", imgURL);
+                  $("#avatarPreview").css({"display": "block"});
+              });
+          });
+      });
+
+      function createAccountHistoryStatus() {
+          let selectedUsers = [];
+
+          document.querySelectorAll(".user-info").forEach(userDiv => {
+              let id = userDiv.querySelector("#useridban").textContent.trim();
+              let username = userDiv.querySelector("#usernameban").textContent.trim();
+              let role = userDiv.querySelector("#roleban").textContent.trim();
+              let status = userDiv.querySelector("#statusCurrent").textContent.trim();
+              let email = userDiv.querySelector("#emailban").textContent.trim();
+
+              selectedUsers.push({
+                  "id": id,
+                  "username": username,
+                  "email": email,
+                  "role": {"role_id": role},
+                  "status": status
+              });
+          });
+
+          console.log("Generated JSON:", JSON.stringify(selectedUsers));
+          return selectedUsers;
+      }
+
+      function getHistoryStatus(selectedUsers) {
+          let statusCurrent = document.querySelector("#statusCurrent").textContent.trim();
+          var newStatus = statusCurrent;
+          if (statusCurrent === 'Active') {
+              newStatus = 'Banned';
+          } else if (statusCurrent === 'Banned') {
+              newStatus = 'Active';
+          }
+
+          console.log("Selected Users:", selectedUsers);
+          console.log("Reason:", $('#reason').val());
+          console.log(newStatus);
+          console.log("Previous Status:", $('#previousStatus').val());
+          console.log("Change Time:", $('#changeTime').val());
+          console.log("Image Evidence:", $('#imageEvidence').val());
+
+          return selectedUsers.map(user => ({
+              "changeReason": $('#reason').val(),
+              "newStatus": newStatus,
+              "previousStatus": statusCurrent,
+              "changeTime": $('#changeTime').val(),
+              "account": user,
+              "imageEvidence": $('#imageEvidence').val()
+          }));
+      }
+
+
+
+      function updateUser() {
+          let updateAccount = {
+              id: selectedUserId,
+              username: $("#username").val(),
+              password: $("#password").val(),
+              email: $("#email").val(),
+              status: $("#status").val(),
+              role: {
+                  role_id: $("#role").val()
+              }
+          };
+          stompClient.send("/app/admin/users/create", {}, JSON.stringify(updateAccount));
+      }
+      let itemsPerPage = 5;
+      let currentActiveAccountPage = 1;
+      let currentBannedAccountPage = 1;
+      let activeAccountsData = [];
+      let bannedAccountsData = [];
+
+      function updateItemList(accountList) {
+          activeAccountsData = accountList.filter(account => account.status === "Active");
+          bannedAccountsData = accountList.filter(account => account.status === "Banned");
+
+          renderPaginationControls('active', activeAccountsData.length);
+          renderPaginationControls('banned', bannedAccountsData.length);
+
+          displayAccountPage('active', 1);
+          displayAccountPage('banned', 1);
+      }
+
+      function displayAccountPage(accountType, pageNumber) {
+          const tableId = accountType === 'active' ? 'activeAccountTab' : 'bannedAccountTab';
+          const accountsData = accountType === 'active' ? activeAccountsData : bannedAccountsData;
+
+          if (accountType === 'active') {
+              currentActiveAccountPage = pageNumber;
+          } else {
+              currentBannedAccountPage = pageNumber;
+          }
+
+          const startIndex = (pageNumber - 1) * itemsPerPage;
+          const endIndex = Math.min(startIndex + itemsPerPage, accountsData.length);
+
+          $(`#${tableId} tbody`).empty();
+
+          for (let i = startIndex; i < endIndex; i++) {
+              const account = accountsData[i];
+
+              let unbanButton = account.status === "Banned" ? `
+            <button class="btn btn-light" data-id="${account.id}">
+                <i class="fa fa-unlock"></i>
+            </button>
+        ` : '';
+
+              let banButton = account.status === "Active" ? `
+            <button class="btn btn-danger" title="Ban" data-id="${account.id}">
+                <i class="fa-solid fa-ban"></i>
+            </button>
+        ` : '';
+
+              let row = `
+            <tr>
+                <td>
+                    <input type="checkbox"
+                        data-id="${account.id}"
+                        data-username="${account.username}"
+                        data-password="${account.password || ''}"
+                        data-role="${account.role ? account.role.role_id : 'N/A'}"
+                        data-status="${account.status}"
+                        data-email="${account.email}"
+                        class="form-check-input"
+                        onchange="checkBox('${account.status}')"/>
+                </td>
+                <td style="display:none;">${account.id}</td>
+                <td>${account.username}</td>
+                <td style="display:none;">${account.password || ''}</td>
+                <td>${account.email}</td>
+                <td>${account.role ? account.role.role_id : 'N/A'}</td>
+                <td>${account.status}</td>
+                <td>
+                    <a class="btn btn-info" title="View">
+                        <i class="fa-solid fa-eye"></i>
+                    </a>
+
+                    ${unbanButton}
+                    ${banButton}
+                </td>
+            </tr>
+        `;
+
+              $(`#${tableId} tbody`).append(row);
+          }
+
+          updatePageInfo(accountType);
+      }
+
+      function renderPaginationControls(accountType, totalItems) {
+          const tableId = accountType === 'active' ? 'activeAccountTab' : 'bannedAccountTab';
+          const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+          const existingPagination = $(`#${tableId}`).parent().find('.pagination-controls');
+          if (existingPagination.length) {
+              existingPagination.remove();
+          }
+
+          const paginationHTML = `
+        <div class="pagination-controls mt-3" data-type="${accountType}">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <span class="mr-3">Rows per page:</span>
+                    <select class="form-control form-control-sm items-per-page" style="width: auto">
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                <div>
+                    <span class="page-info mr-3"></span>
+                    <button class="btn btn-sm btn-outline-primary prev-page" ${totalPages <= 1 ? 'disabled' : ''}>
+                        <i class="fa fa-chevron-left"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary next-page" ${totalPages <= 1 ? 'disabled' : ''}>
+                        <i class="fa fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+          $(`#${tableId}`).parent().append(paginationHTML);
+
+          attachPaginationEvents(accountType);
+      }
+
+      function updatePageInfo(accountType) {
+          const accountsData = accountType === 'active' ? activeAccountsData : bannedAccountsData;
+          const currentPage = accountType === 'active' ? currentActiveAccountPage : currentBannedAccountPage;
+          const totalPages = Math.ceil(accountsData.length / itemsPerPage);
+          const startItem = (currentPage - 1) * itemsPerPage + 1;
+          const endItem = Math.min(startItem + itemsPerPage - 1, accountsData.length);
+
+          const paginationControls = $(`.pagination-controls[data-type="${accountType}"]`);
+          paginationControls.find('.page-info').text(`${startItem}-${endItem} of ${accountsData.length}`);
+
+          paginationControls.find('.prev-page').prop('disabled', currentPage === 1);
+          paginationControls.find('.next-page').prop('disabled', currentPage === totalPages || totalPages === 0);
+
+          paginationControls.find('.items-per-page').val(itemsPerPage);
+      }
+
+      function attachPaginationEvents(accountType) {
+          const paginationControls = $(`.pagination-controls[data-type="${accountType}"]`);
+
+          paginationControls.find('.prev-page').on('click', function() {
+              const currentPage = accountType === 'active' ? currentActiveAccountPage : currentBannedAccountPage;
+              if (currentPage > 1) {
+                  displayAccountPage(accountType, currentPage - 1);
+              }
+          });
+
+          paginationControls.find('.next-page').on('click', function() {
+              const currentPage = accountType === 'active' ? currentActiveAccountPage : currentBannedAccountPage;
+              const accountsData = accountType === 'active' ? activeAccountsData : bannedAccountsData;
+              const totalPages = Math.ceil(accountsData.length / itemsPerPage);
+
+              if (currentPage < totalPages) {
+                  displayAccountPage(accountType, currentPage + 1);
+              }
+          });
+
+          paginationControls.find('.items-per-page').on('change', function() {
+              itemsPerPage = parseInt($(this).val());
+
+              renderPaginationControls('active', activeAccountsData.length);
+              renderPaginationControls('banned', bannedAccountsData.length);
+
+              displayAccountPage('active', 1);
+              displayAccountPage('banned', 1);
+          });
+      }
+  </script>
+</head>
+<body>
+<div class="container-scroller">
+
+    <div th:replace="~{/view/admin/partials/_navbar :: _navbar}"></div>
+    <!-- partial -->
+    <div class="container-scroller">
+
+        <div th:replace="~{/view/admin/partials/_navbar :: _navbar}"></div>
+        <!-- partial -->
+        <div class="container-fluid page-body-wrapper">
+            <!-- partial:partials/_sidebar.html -->
+            <div th:replace="~{/view/admin/partials/_sidebar :: _sidebar}"></div>
+            <!-- partial -->
+            <div class="main-panel">
+                <div class="content-wrapper">
+                    <div class="container-fluid px-4">
+
+                        <ol class="breadcrumb mb-4">
+                            <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+                            <li class="breadcrumb-item active">Users</li>
+                        </ol>
+                        <div class="filter-container">
+                            <label>
+                                <input type="text" id="search-input" class="search-input" placeholder="Search Name">
+
+                            </label>
+
+                            <div class="dropdown">
+
+                                <button style="background-color: #EAE4F3; border-radius: 10px;color:#6216FF" type="button" data-bs-toggle="dropdown">
+                                    <i class="fa-solid fa-sort"></i> <span style="margin-right: 2px"> Sort</span>
+                                </button>
+
+                                <ul class="dropdown-menu dropdown-menu-dark">
+
+                                    <li class="dropdown">
+                                        <a class="dropdown-item dropdown-toggle">By Name</a>
+
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#">Sort A-Z</a></li>
+                                            <li><a class="dropdown-item" href="#">Sort Z-A</a></li>
+                                        </ul>
+                                    </li>
+                                    <li class="dropdown" name="filter-sort">
+                                        <a class="dropdown-item">Sort Course Point</a>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item">Ascending</a></li>
+                                            <li><a class="dropdown-item">Descending</a></li>
+                                        </ul>
+                                    </li>
+
+                                    <li class="dropdown">
+                                        <a class="dropdown-item">Sort Earn Money</a>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#">Ascending</a></li>
+                                            <li><a class="dropdown-item" href="#">Descending</a></li>
+                                        </ul>
+
+                                    </li>
+                                </ul>
+
+
+                                <button style="background-color: #EAE4F3; color:#6216FF;border-radius: 10px" type="button" data-bs-toggle="dropdown">
+                                    <i class="fa-solid fa-filter"></i> <span style="margin-right: 2px"> Filter</span>
+                                </button>
+
+                                <ul class="dropdown-menu dropdown-menu-dark">
+                                    <li class="dropdown">
+                                        <a class="dropdown-item">Role</a>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item">Learner</a></li>
+                                            <li><a class="dropdown-item">Teacher</a></li>
+                                        </ul>
+                                    </li>
+                                    <li class="dropdown">
+                                        <a class="dropdown-item">Status</a>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#">ACTIVE</a></li>
+                                            <li><a class="dropdown-item" href="#">BANNED</a></li>
+                                        </ul>
+                                    </li>
+                                    <li><a class="dropdown-item">Something else here</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item">Separated link</a></li>
+                                </ul>
+                            </div>
+
+
+                        </div>
+
+                    </div>
+                    <div class="tab-container">
+                        <button class="tab-button active" onclick="showTab('activeAccountTab', this)">Active Accounts</button>
+                        <button class="tab-button" onclick="showTab('bannedAccountTab', this)">Banned Accounts</button>
+                    </div>
+
+
+                    <button class="btn-gradient-danger" id="bulkBan">
+                        <i class="fas fa-user-slash"></i> <span th:text="#{action.button.bulkban}"></span>
+                    </button>
+
+                    <button class="btn-gradient-success" id="bulkUnban">
+                        <i class="fas fa-user-check"></i> <span th:text="#{action.button.bulkunban}"></span>
+                    </button>
+
+
+                    <div class="card">
+                        <div class="card-body" id="accountList">
+                            <h4 class="card-title">List Account</h4>
+
+                            <!-- Bảng Active Accounts -->
+                            <div class="table-responsive">
+                                <table class="table" id="activeAccountTab">
+                                    <thead>
+                                    <tr class="table-info">
+                                        <th>Choose</th>
+
+                                        <th>Username</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+
+                            <!-- Bảng Banned Accounts -->
+                            <div class="table-responsive" style="display: none;">
+                                <table class="table" id="bannedAccountTab">
+                                    <thead>
+                                    <tr class="table-info">
+                                        <th>Choose</th>
+                                        <th>Username</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div id="confirmBanModal" class="modal fade" tabindex="-1" role="dialog">
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 id="title-modal" class="modal-title">Xác nhận khoá người dùng</h5>
+                                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                </div>
+                                <div class="modal-body">
+                                    <div id="userList" style="max-height: 300px; overflow-y: auto;">
+
+                                    </div>
+                                    <hr>
+                                    <div>
+                                        <input type="text" id="reason" placeholder="Reason">
+                                        <input type="file" id="imageEvidence">
+                                        <input type="hidden" id="previousStatus">
+                                        <input type="hidden" id="changeTime" th:value="${#temporals.createNow()}">
+                                    </div>
+                                    <p class="text-danger" th:text="#{confirm.text}"></p>
+                                    <input type="text" id="confirmText" class="form-control" placeholder='Nhập "CONFIRM" để xác nhận' required>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" name="confirmNo" class="btn btn-secondary" data-dismiss="modal" th:text="#{confirm.no}"></button>
+                                    <button type="button" name="confirmYes" class="btn btn-danger" id="confirmBanBtn" th:text="#{confirm.yes}" disabled></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal fade" id="teacherDetailsModal" tabindex="-1" aria-labelledby="teacherDetailsModalLabel" >
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header bg-primary bg-gradient text-white">
+                                    <h5 class="modal-title" id="teacherDetailsModalLabel">Teacher Profile Details</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body p-0">
+                                    <!-- Loading Spinner -->
+                                    <div id="teacherDetailsLoading" class="text-center p-5">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p class="mt-2">Loading teacher details...</p>
+                                    </div>
+
+                                    <div id="teacherDetailsContent">
+                                        <!-- Header with Cover Image -->
+                                        <div class="position-relative">
+                                            <div class="bg-info bg-gradient" style="height: 150px;"></div>
+                                            <div class="d-flex px-4">
+                                                <img id="teacherAvatar" src="/images/default-avatar.png" class="rounded-circle border border-4 border-white" style="width: 120px; height: 120px; margin-top: -60px; object-fit: cover;" alt="Teacher Avatar">
+                                                <div class="ms-3 mt-3">
+                                                    <h4 id="teacherName" class="mb-0 fw-bold">Teacher Name</h4>
+                                                    <p id="teacherEmail" class="text-muted">email@example.com</p>
+                                                </div>
+                                                <div class="ms-auto mt-3">
+                                                    <span id="teacherStatus" class="badge bg-success px-3 py-2">Active</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="teacher-tabs-container px-4 mt-3">
+                                            <ul class="nav nav-tabs" id="teacherDetailsTabs" role="tablist">
+                                                <li class="nav-item" role="presentation">
+                                                    <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab" aria-controls="basic" aria-selected="true">
+                                                        <i class="fa fa-user me-2"></i>Basic Info
+                                                    </button>
+                                                </li>
+                                                <li class="nav-item" role="presentation">
+                                                    <button class="nav-link" id="courses-tab" data-bs-toggle="tab" data-bs-target="#courses" type="button" role="tab" aria-controls="courses" aria-selected="false">
+                                                        <i class="fa fa-book me-2"></i>Courses
+                                                    </button>
+                                                </li>
+                                                <li class="nav-item" role="presentation">
+                                                    <button class="nav-link" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats" type="button" role="tab" aria-controls="stats" aria-selected="false">
+                                                        <i class="fa fa-chart-bar me-2"></i>Statistics
+                                                    </button>
+                                                </li>
+                                                <li class="nav-item" role="presentation">
+                                                    <button class="nav-link" id="registration-tab" data-bs-toggle="tab" data-bs-target="#registration" type="button" role="tab" aria-controls="registration" aria-selected="false">
+                                                        <i class="fa fa-id-card me-2"></i>Registration Info
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                        <div class="tab-content" id="teacherDetailsTabContent">>
+
+                                            <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="card shadow-sm mb-4">
+                                                            <div class="card-header bg-light">
+                                                                <h6 class="mb-0">Account Details</h6>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">User ID</label>
+                                                                    <p id="teacherId" class="mb-0">ID12345</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">Username</label>
+                                                                    <p id="teacherUsername" class="mb-0">username</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">Email</label>
+                                                                    <p id="teacherEmailDetail" class="mb-0">email@example.com</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">Role</label>
+                                                                    <p><span id="teacherRole" class="badge bg-info">Teacher</span></p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">Status</label>
+                                                                    <p><span id="teacherStatusDetail" class="badge bg-success">Active</span></p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="col-md-6">
+                                                        <div class="card shadow-sm mb-4">
+                                                            <div class="card-header bg-light">
+                                                                <h6 class="mb-0">Personal Information</h6>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">Full Name</label>
+                                                                    <p id="teacherFullName" class="mb-0">John Doe</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">Phone Number</label>
+                                                                    <p id="teacherPhone" class="mb-0">+1234567890</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">Gender</label>
+                                                                    <p id="teacherGender" class="mb-0">Male</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">Date of Birth</label>
+                                                                    <p id="teacherDob" class="mb-0">Jan 1, 1990</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="row">
+                                                    <div class="col-12">
+                                                        <div class="card shadow-sm">
+                                                            <div class="card-header bg-light">
+                                                                <h6 class="mb-0">Description & Bio</h6>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                <p id="teacherDescription" class="mb-0">Teacher description will appear here.</p>
+                                                                <p id="teacherBio">Link</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="tab-pane fade" id="courses" role="tabpanel" aria-labelledby="courses-tab">
+                                                <div class="card shadow-sm">
+                                                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                                        <h6 class="mb-0">Teacher's Courses</h6>
+                                                        <span id="courseCount" class="badge bg-primary">0</span>
+                                                    </div>
+                                                    <div class="card-body p-0">
+                                                        <div class="table-responsive">
+                                                            <table class="table table-hover mb-0">
+                                                                <thead class="bg-light">
+                                                                <tr>
+                                                                    <th>Course Title</th>
+                                                                    <th>Category</th>
+                                                                    <th>Price</th>
+                                                                    <th>Students</th>
+                                                                    <th>Rating</th>
+                                                                    <th>Status</th>
+                                                                </tr>
+                                                                </thead>
+                                                                <tbody id="teacherCoursesList">
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                        <div id="noCourses" class="text-center p-4 d-none">
+                                                            <i class="fa fa-book-open fa-2x text-muted mb-2"></i>
+                                                            <p>This teacher hasn't created any courses yet.</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="tab-pane fade" id="stats" role="tabpanel" aria-labelledby="stats-tab">
+                                                <div class="row">
+                                                    <div class="col-md-4 mb-4">
+                                                        <div class="card shadow-sm h-100">
+                                                            <div class="card-body text-center">
+                                                                <div class="display-4 fw-bold text-primary mb-2">
+                                                                    <span id="totalStudents">0</span>
+                                                                </div>
+                                                                <h6 class="text-muted">Total Students</h6>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4 mb-4">
+                                                        <div class="card shadow-sm h-100">
+                                                            <div class="card-body text-center">
+                                                                <div class="display-4 fw-bold text-success mb-2">
+                                                                    <span id="avgRating">0.0</span>
+                                                                </div>
+                                                                <h6 class="text-muted">Average Rating</h6>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4 mb-4">
+                                                        <div class="card shadow-sm h-100">
+                                                            <div class="card-body text-center">
+                                                                <div class="display-4 fw-bold text-info mb-2">
+                                                                    <span id="totalReviews">0</span>
+                                                                </div>
+                                                                <h6 class="text-muted">Total Reviews</h6>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="row">
+                                                    <div class="col-12">
+                                                        <div class="card shadow-sm">
+                                                            <div class="card-header bg-light">
+                                                                <h6 class="mb-0">Activity Timeline</h6>
+                                                            </div>
+                                                            <div class="card-body p-0">
+                                                                <ul class="list-group list-group-flush" id="activityTimeline">
+                                                                    <li class="list-group-item d-flex">
+                                                                        <div class="timeline-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 36px; height: 36px;">
+                                                                            <i class="fa fa-user-plus"></i>
+                                                                        </div>
+                                                                        <div>
+                                                                            <p class="mb-0 fw-medium">Account Created</p>
+                                                                            <small id="userCreatedDate" class="text-muted">Jan 1, 2023</small>
+                                                                        </div>
+                                                                    </li>
+                                                                    <li class="list-group-item d-flex">
+                                                                        <div class="timeline-icon bg-info text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 36px; height: 36px;">
+                                                                            <i class="fa fa-sign-in-alt"></i>
+                                                                        </div>
+                                                                        <div>
+                                                                            <p class="mb-0 fw-medium">Last Login</p>
+                                                                            <small id="userLastLogin" class="text-muted">Mar 15, 2023</small>
+                                                                        </div>
+                                                                    </li>
+                                                                </ul>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="tab-pane fade" id="registration" role="tabpanel" aria-labelledby="registration-tab">
+                                                <div class="card shadow-sm">
+                                                    <div class="card-header bg-light">
+                                                        <h6 class="mb-0">Teacher Registration Details</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="row">
+                                                            <div class="col-md-6">
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">First Name</label>
+                                                                    <p id="regFirstName" class="mb-0">John</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">Last Name</label>
+                                                                    <p id="regLastName" class="mb-0">Doe</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">ID Card Number</label>
+                                                                    <p id="regCCCD" class="mb-0">123456789012</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">Phone Number</label>
+                                                                    <p id="regPhoneNumber" class="mb-0">+1234567890</p>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">Gender</label>
+                                                                    <p id="regGender" class="mb-0">Male</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">Date of Birth</label>
+                                                                    <p id="regDateOfBirth" class="mb-0">01/01/1990</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">Bank Account</label>
+                                                                    <p id="regBankAccount" class="mb-0">1234567890</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="text-muted small">Registration Status</label>
+                                                                    <p><span id="regStatus" class="badge bg-success">Approved</span></p>
+                                                                </div>
+                                                            </div></div>
+                                                        <div class="mb-3">
+                                                            <label class="text-muted small">Registration Reason</label>
+                                                            <p id="regReason" class="mb-0">Teacher's reason for registration will appear here.</p>
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="col-md-6">
+                                                                <div class="mb-0">
+                                                                    <label class="text-muted small">Created On</label>
+                                                                    <p id="regCreatedTime" class="mb-0">Jan 1, 2023 10:00:00</p>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <div class="mb-0">
+                                                                    <label class="text-muted small">Processed On</label>
+                                                                    <p id="regProcessedTime" class="mb-0">Jan 2, 2023 11:00:00</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+
+
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    <button type="button" class="btn btn-primary" id="editTeacherBtn">Edit Teacher</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+
+            </div>
+
+        </div>
+
+        <div th:replace="~{/view/admin/partials/_footer :: _footer}"></div>
+
+    </div>
+
+</div>
+
+
+<div th:replace="~{/view/admin/partials/chatopenai :: chatopenai}"></div>
+
+</body>
+
+</html>

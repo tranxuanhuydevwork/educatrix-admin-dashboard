@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Category Management | Admin Panel</title>
+    <link rel="stylesheet" th:src="@{/css/materialdesignicons.min.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="static/css/vendor.bundle.base.css">
+    <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
+    <link th:href="@{/css/style.css}" rel="stylesheet" />
+    <link th:href="@{/css/style111.css}" rel="stylesheet" />
+    <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+    <link rel="shortcut icon" href="images/favicon.png" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <style>
+        .confirm-modal {
+            display: none;
+            position: fixed;
+            top: 403px;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .confirm-modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            width: 400px;
+            text-align: center;
+        }
+
+        .form-modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            width: 500px;
+        }
+
+        .btn {
+            margin: 5px;
+        }
+
+        .filter-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .search-input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-width: 250px;
+        }
+
+        .active-link {
+            font-weight: bold;
+            color: #fff;
+            background-color: #6216FF;
+        }
+    </style>
+    <script>
+        var filterArray = [];
+        var activeFilters = {
+            search: "",
+            courseCount: null,
+            sort: null
+        };
+
+        var socket = new SockJS('/ws');
+        var stompClient = Stomp.over(socket);
+        let selectedId = null;
+
+        stompClient.connect({}, function () {
+            console.log("Successfully connected to WebSocket");
+
+            stompClient.subscribe('/topic/categories', function (message) {
+                var categories = JSON.parse(message.body);
+                console.log("Received categories:", categories);
+                updateCategoryList(categories);
+            });
+
+            stompClient.subscribe('/topic/error', function (message) {
+                var errorLine = JSON.parse(message.body);
+                console.log("error" + errorLine);
+                document.getElementById("errorLine").innerText = errorLine;
+            });
+
+            stompClient.subscribe('/topic/category', function (message) {
+                var category = JSON.parse(message.body);
+                console.log("Received category details:", category);
+                populateCategoryForm(category);
+            });
+
+            stompClient.send("/app/admin/categories", {}, {});
+        });
+
+        function populateCategoryForm(category) {
+            document.getElementById("category-name-update").value = category.categoryName || '';
+            document.getElementById("category-description-update").value = category.description || '';
+        }
+
+        function applyFilters(categories) {
+            let filteredCategories = [...categories];
+
+            if (activeFilters.search) {
+                const searchTerm = activeFilters.search.toLowerCase();
+                filteredCategories = filteredCategories.filter(category =>
+                    category.categoryName.toLowerCase().includes(searchTerm) ||
+                    (category.description && category.description.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            if (activeFilters.courseCount === "with-courses") {
+                filteredCategories = filteredCategories.filter(category => category.courseCount > 0);
+            } else if (activeFilters.courseCount === "without-courses") {
+                filteredCategories = filteredCategories.filter(category => category.courseCount === 0);
+            }
+
+            if (activeFilters.sort) {
+                switch(activeFilters.sort) {
+                    case "name-asc":
+                        filteredCategories.sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+                        break;
+                    case "name-desc":
+                        filteredCategories.sort((a, b) => b.categoryName.localeCompare(a.categoryName));
+                        break;
+                    case "count-high":
+                        filteredCategories.sort((a, b) => (b.courseCount || 0) - (a.courseCount || 0));
+                        break;
+                    case "count-low":
+                        filteredCategories.sort((a, b) => (a.courseCount || 0) - (b.courseCount || 0));
+                        break;
+                    case "revenue-high":
+                        filteredCategories.sort((a, b) => {
+                            const aRevenue = parseFloat((a.formattedRevenue || "$0.00").replace(/[^0-9.]/g, ""));
+                            const bRevenue = parseFloat((b.formattedRevenue || "$0.00").replace(/[^0-9.]/g, ""));
+                            return bRevenue - aRevenue;
+                        });
+                        break;
+                    case "revenue-low":
+                        filteredCategories.sort((a, b) => {
+                            const aRevenue = parseFloat((a.formattedRevenue || "$0.00").replace(/[^0-9.]/g, ""));
+                            const bRevenue = parseFloat((b.formattedRevenue || "$0.00").replace(/[^0-9.]/g, ""));
+                            return aRevenue - bRevenue;
+                        });
+                        break;
+                }
+            }
+
+            return filteredCategories;
+        }
+
+
+
+        let allCategories = [];
+
+        function updateCategoryList(categories) {
+            allCategories = categories;
+
+            const filteredCategories = applyFilters(categories);
+
+            $('#category-list').empty();
+
+            filteredCategories.forEach(function (category) {
+                let isDeletable = category.courseCount === 0;
+                $('#category-list').append(`
+        <tr>
+            <td>${category.id}</td>
+            <td>
+                ${category.categoryName}
+                <br>
+                <small class="text-muted">${category.description || ''}</small>
+            </td>
+            <td>${category.courseCount || 0}</td>
+            <td>${category.formattedRevenue || '$0.00'}</td>
+            <td>-</td>
+            <td>
+                <button class="btn btn-warning edit-btn" data-id="${category.id}">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button class="btn btn-danger delete-btn" data-quantity="${category.courseCount}"
+                    data-id="${category.id}" ${isDeletable ? '' : 'disabled'}>
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `);
+            });
+
+            document.getElementById('totalCategory').innerText = filteredCategories.length;
+            document.getElementById('totalFilteredCategory').innerText = `${filteredCategories.length} / ${allCategories.length}`;
+
+            attachButtonListeners();
+        }
+
+        function attachButtonListeners() {
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    selectedId = this.getAttribute('data-id');
+                    stompClient.send("/app/admin/categories/get", {}, selectedId);
+                    document.getElementById("updateModal").style.display = "flex";
+                });
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    selectedId = this.getAttribute('data-id');
+                    document.getElementById("deleteModal").style.display = "flex";
+                });
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            document.getElementById("search-input").addEventListener("input", function () {
+                activeFilters.search = this.value.trim();
+                updateCategoryList(allCategories);
+            });
+
+            document.getElementById("filter-all").addEventListener("click", function() {
+                setActiveFilter(this);
+                activeFilters.courseCount = null;
+                updateCategoryList(allCategories);
+            });
+
+            document.getElementById("filter-with-courses").addEventListener("click", function() {
+                setActiveFilter(this);
+                activeFilters.courseCount = "with-courses";
+                updateCategoryList(allCategories);
+            });
+
+            document.getElementById("filter-without-courses").addEventListener("click", function() {
+                setActiveFilter(this);
+                activeFilters.courseCount = "without-courses";
+                updateCategoryList(allCategories);
+            });
+
+            function setActiveFilter(element) {
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('active-filter');
+                });
+                element.classList.add('active-filter');
+            }
+
+            document.querySelectorAll(".sort-option").forEach(function (element) {
+                element.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    const sortValue = this.getAttribute("data-sort");
+                    document.getElementById("sort-button").textContent = this.textContent;
+                    activeFilters.sort = sortValue;
+                    updateCategoryList(allCategories);
+                });
+            });
+            document.getElementById("create-form").addEventListener("submit", function(event) {
+                event.preventDefault();
+
+                const categoryData = {
+                    categoryName: document.getElementById("category-name").value,
+                    description: document.getElementById("category-description").value
+                };
+
+                stompClient.send("/app/admin/categories/create", {}, JSON.stringify(categoryData));
+                document.getElementById("createModal").style.display = "none";
+                document.getElementById("create-form").reset();
+            });
+
+            document.getElementById("create-category-btn").addEventListener("click", function() {
+                document.getElementById("createModal").style.display = "flex";
+            });
+            const categoryNameInput = document.getElementById('category-name');
+            const errorLine = document.getElementById('errorLine');
+
+            categoryNameInput.addEventListener('input', function(event) {
+                const value = categoryNameInput.value;
+
+                if (/  /.test(value)) {
+                    errorLine.textContent = "Category names cannot contain two consecutive spaces!";
+                    errorLine.style.color = "red";
+                    errorLine.style.display = "block";
+                    categoryNameInput.value = value.replace(/  +/g, ' ');
+                } else {
+                    errorLine.textContent = "";
+                    errorLine.style.display = "none";
+                }
+            });
+
+            document.getElementById("create-form").addEventListener("submit", function(event) {
+                event.preventDefault();
+
+                const categoryData = {
+                    categoryName: document.getElementById("category-name").value,
+                    description: document.getElementById("category-description").value
+                };
+
+                stompClient.send("/app/admin/categories/create", {}, JSON.stringify(categoryData));
+                document.getElementById("createModal").style.display = "none";
+                document.getElementById("create-form").reset();
+            });
+
+            document.getElementById("update-form").addEventListener("submit", function(event) {
+                event.preventDefault();
+
+                const categoryData = {
+                    id: selectedId,
+                    categoryName: document.getElementById("category-name-update").value,
+                    description: document.getElementById("category-description-update").value
+                };
+
+                stompClient.send("/app/admin/categories/update", {}, JSON.stringify(categoryData));
+                document.getElementById("updateModal").style.display = "none";
+            });
+
+            document.querySelectorAll(".close-modal").forEach(function(button) {
+                button.addEventListener("click", function() {
+                    document.getElementById(this.getAttribute("data-target")).style.display = "none";
+                });
+            });
+
+            document.querySelectorAll("[name='confirmYes']").forEach(function(button) {
+                button.addEventListener("click", function() {
+                    stompClient.send("/app/admin/categories/delete", {}, selectedId);
+                    document.getElementById("deleteModal").style.display = "none";
+                });
+            });
+
+            document.querySelectorAll("[name='confirmNo']").forEach(function(button) {
+                button.addEventListener("click", function() {
+                    document.getElementById("deleteModal").style.display = "none";
+                });
+            });
+        });
+    </script>
+</head>
+<body>
+<div class="container-scroller">
+
+    <div th:replace="~{/view/admin/partials/_navbar :: _navbar}"></div>
+    <div class="container-fluid page-body-wrapper">
+        <div th:replace="~{/view/admin/partials/_sidebar :: _sidebar}"></div>
+        <div class="main-panel">
+            <div class="content-wrapper">
+                <div class="container-fluid px-4">
+                    <div class="filter-container">
+                        <label>
+                            <input type="search" id="search-input" class="search-input" placeholder="Search Name">
+                        </label>
+                        <div class="dropdown d-inline-block">
+                            <button class="btn dropdown-toggle" style="background-color: #EAE4F3; border-radius: 10px;color:#6216FF" type="button" data-bs-toggle="dropdown">
+                                <i class="fa-solid fa-sort"></i> <span style="margin-right: 2px"> Sort</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-dark">
+                                <li><a class="dropdown-item" href="#">Sort by Name (A-Z)</a></li>
+                                <li><a class="dropdown-item" href="#">Sort by Name (Z-A)</a></li>
+                                <li><a class="dropdown-item" href="#">Sort by Course Count (High to Low)</a></li>
+                                <li><a class="dropdown-item" href="#">Sort by Course Count (Low to High)</a></li>
+                            </ul>
+                        </div>
+
+                        <div class="filter-buttons">
+                            <button id="filter-all" class="btn filter-btn active-filter" style="background-color: #EAE4F3; color: #6216FF;">
+                                <i class="fa-solid fa-list"></i> All Categories
+                            </button>
+                            <button id="filter-with-courses" class="btn filter-btn" style="background-color: #EAE4F3; color: #6216FF;">
+                                <i class="fa-solid fa-book-open"></i> With Courses
+                            </button>
+                            <button id="filter-without-courses" class="btn filter-btn" style="background-color: #EAE4F3; color: #6216FF;">
+                                <i class="fa-solid fa-ban"></i> Empty Categories
+                            </button>
+                        </div>
+                        <p>Showing: <strong id="totalFilteredCategory">0 / 0</strong></p>
+                        <button id="create-category-btn" class="btn" style="background-color: #6216FF; color: white; margin-left: auto;">
+                            <i class="fa-solid fa-plus"></i> Create Category
+                        </button>
+                    </div>
+
+                    <div class="container mt-4">
+                        <h2>Category List</h2>
+                        <p>Total categories: <strong id="totalCategory">0</strong></p>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-dark">
+                                <tr>
+                                    <th th:text="#{category.id}">ID</th>
+                                    <th th:text="#{category.name}">Name</th>
+                                    <th th:text="#{category.quantity}">Course Count</th>
+                                    <th th:text="#{course.revenue}">Revenue</th>
+                                    <th th:text="#{course.created_time}">Created Time</th>
+                                    <th th:text="#{action}">Action</th>
+                                </tr>
+                                </thead>
+                                <tbody id="category-list">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="deleteModal" class="confirm-modal">
+                        <div class="confirm-modal-content">
+                            <p th:text="#{confirm.delete.course}">Are you sure you want to delete this category?</p>
+                            <button name="confirmYes" class="btn btn-primary" th:text="#{confirm.yes}">Yes</button>
+                            <button name="confirmNo" class="btn btn-danger" th:text="#{confirm.no}">No</button>
+                        </div>
+                    </div>
+
+                    <div id="createModal" class="confirm-modal">
+                        <div class="form-modal-content">
+                            <h4>Create New Category</h4>
+                            <h5 id="errorLine"></h5>
+                            <form id="create-form">
+                                <div class="mb-3">
+                                    <label for="category-name" class="form-label">Category Name</label>
+                                    <input type="text" class="form-control" id="category-name" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="category-description" class="form-label">Description</label>
+                                    <textarea class="form-control" id="category-description" rows="3"></textarea>
+                                </div>
+                                <div class="d-flex justify-content-end">
+                                    <button type="button" class="btn btn-secondary close-modal" data-target="createModal">Cancel</button>
+                                    <button type="submit" id="buttonCreate" class="btn btn-primary">Save</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div id="updateModal" class="confirm-modal">
+                        <div class="form-modal-content">
+                            <h4>Update Category</h4>
+                            <form id="update-form">
+                                <div class="mb-3">
+                                    <label for="category-name-update" class="form-label">Category Name</label>
+                                    <input type="text" class="form-control" id="category-name-update" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="category-description-update" class="form-label">Description</label>
+                                    <textarea class="form-control" id="category-description-update" rows="3"></textarea>
+                                </div>
+                                <div class="d-flex justify-content-end">
+                                    <button type="button" class="btn btn-secondary close-modal" data-target="updateModal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Save</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{js/vendor.bundle.base.js}"></script>
+<script th:src="@{js/vendor.bundle.addons.js}"></script>
+
+<script th:src="@{js/off-canvas.js}"></script>
+<script th:src="@{js/misc.js}"></script>
+
+<script th:src="@{js/dashboard.js}"></script>
+</body>
+</html>

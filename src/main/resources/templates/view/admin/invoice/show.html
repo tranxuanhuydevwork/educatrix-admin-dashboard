@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Educatrix Admin</title>
+    <link rel="stylesheet" th:src="@{/css/materialdesignicons.min.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" th:src="@{/css/vendor.bundle.base.css}">
+    <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
+    <link th:href="@{/css/style.css}" rel="stylesheet" />
+    <link th:href="@{/css/style111.css}" rel="stylesheet" />
+    <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+    <link rel="shortcut icon" href="/images/favicon.png" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script> <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<style>
+    :root {
+        --primary-color: #6216FF;
+        --primary-light: #EAE4F3;
+        --success-color: #28a745;
+        --warning-color: #ffc107;
+        --danger-color: #dc3545;
+        --dark-color: #212529;
+        --light-color: #f8f9fa;
+        --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
+        --transition: all 0.3s ease;
+        --border-radius: 10px;
+        --border-radius-sm: 6px;
+    }
+
+    body {
+        font-family: 'Roboto', 'Segoe UI', sans-serif;
+        background-color: #f7f9fc;
+        color: #333;
+    }
+
+    .container-scroller {
+        background-color: #ffffff;
+        box-shadow: var(--shadow-md);
+    }
+
+    .navbar {
+        box-shadow: var(--shadow-sm);
+        background: #fff;
+        padding: 12px 20px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .navbar-dropdown {
+        border-radius: var(--border-radius-sm);
+        box-shadow: var(--shadow-md);
+        transition: var(--transition);
+        border: none;
+        padding: 10px 0;
+    }
+
+    .navbar-dropdown.show {
+        transform: translateY(0);
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .navbar-dropdown:not(.show) {
+        transform: translateY(-10px);
+        opacity: 0;
+        visibility: hidden;
+    }
+
+    .tab-container {
+        display: flex;
+        justify-content: center;
+        margin: 20px 0;
+        position: relative;
+    }
+
+    .tab-buttons {
+        display: flex;
+        position: relative;
+        background: var(--light-color);
+        border-radius: var(--border-radius);
+        padding: 5px;
+        box-shadow: var(--shadow-sm);
+        width: fit-content;
+    }
+
+    .tab-button {
+        border: none;
+        background: transparent;
+        padding: 14px 28px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 15px;
+        color: #555;
+        transition: var(--transition);
+        position: relative;
+        z-index: 2;
+    }
+
+    .tab-button.active {
+        font-weight: 600;
+    }
+
+    .tab-indicator {
+        position: absolute;
+        bottom: 5px;
+        height: 4px;
+        background: var(--success-color);
+        border-radius: var(--border-radius-sm);
+        transition: var(--transition);
+        z-index: 1;
+    }
+
+    .slide-in {
+        animation: slideIn 0.4s cubic-bezier(0.215, 0.610, 0.355, 1);
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Table Styling */
+    .table {
+        border-collapse: separate;
+        border-spacing: 0;
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        margin-top: 20px;
+        background-color: #fff;
+    }
+
+    .table thead {
+        background-color: var(--dark-color);
+        color: white;
+    }
+
+    .table th {
+        font-weight: 500;
+        padding: 16px;
+        font-size: 14px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        border-bottom: none;
+    }
+
+    .table td {
+        padding: 16px;
+        vertical-align: middle;
+        border-top: 1px solid #edf2f9;
+        font-size: 14px;
+    }
+
+    .table tbody tr {
+        transition: var(--transition);
+    }
+
+    .table tbody tr:hover {
+        background-color: rgba(98, 22, 255, 0.03);
+    }
+
+    .filter-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 15px 20px;
+        background-color: #fff;
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .search-input {
+        border: 1px solid #e0e0e0;
+        border-radius: var(--border-radius-sm);
+        padding: 12px 16px;
+        width: 300px;
+        font-size: 14px;
+        transition: var(--transition);
+        background-color: #f9f9f9;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(98, 22, 255, 0.1);
+        background-color: #fff;
+    }
+
+    .search-input::placeholder {
+        color: #aaa;
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 10px 18px;
+        border-radius: var(--border-radius);
+        transition: var(--transition);
+        font-weight: 500;
+        border: none;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-color);
+        color: #fff;
+    }
+
+    .btn-primary:hover {
+        background-color: #5010e0;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .btn-danger {
+        background-color: var(--danger-color);
+        color: #fff;
+    }
+
+    .btn-danger:hover {
+        background-color: #c82333;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .sort-btn, .filter-btn {
+        background-color: var(--primary-light);
+        color: var(--primary-color);
+        border-radius: var(--border-radius);
+        padding: 12px 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+    }
+
+    .sort-btn:hover, .filter-btn:hover {
+        background-color: rgba(98, 22, 255, 0.15);
+        color: var(--primary-color);
+    }
+
+    .sort-btn i, .filter-btn i {
+        font-size: 14px;
+    }
+
+    /* Dropdown Styling */
+    .dropdown-menu {
+        border: none;
+        box-shadow: var(--shadow-md);
+        border-radius: var(--border-radius-sm);
+        padding: 8px 0;
+        background-color: #2d3748;
+    }
+
+    .dropdown-item {
+        padding: 10px 16px;
+        font-size: 14px;
+        color: #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: var(--transition);
+    }
+
+    .dropdown-item:hover, .dropdown-item.active {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .dropdown-item i {
+        font-size: 14px;
+        width: 18px;
+    }
+
+    /* Status Colors */
+    #invoice-list-success tr {
+        border-left: 4px solid var(--success-color);
+    }
+
+    #invoice-list-pending tr {
+        border-left: 4px solid var(--warning-color);
+    }
+
+    #invoice-list-fail tr {
+        border-left: 4px solid var(--danger-color);
+    }
+
+    /* Modal Styling */
+    .confirm-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1050;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .confirm-modal.show {
+        display: flex;
+    }
+
+    .confirm-modal-content {
+        background-color: #fff;
+        border-radius: var(--border-radius);
+        padding: 30px;
+        width: 400px;
+        box-shadow: var(--shadow-lg);
+        text-align: center;
+        animation: scaleIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes scaleIn {
+        from { transform: scale(0.9); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+
+    .form-select {
+        border-radius: var(--border-radius-sm);
+        padding: 10px 12px;
+        font-size: 14px;
+        background-color: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        width: 100%;
+    }
+
+    .form-select:focus {
+        outline: none;
+        border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    h2 {
+        color: #2d3748;
+        font-weight: 600;
+        margin-bottom: 5px;
+        font-size: 24px;
+    }
+
+    p strong {
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+
+    .table .btn {
+        padding: 8px 12px;
+        margin: 0 4px;
+    }
+
+    .table .btn i {
+        font-size: 12px;
+    }
+
+
+    .table-responsive {
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+    }
+
+    @media (max-width: 768px) {
+        .filter-container {
+            flex-direction: column;
+            gap: 15px;
+            align-items: stretch;
+        }
+
+        .search-input {
+            width: 100%;
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+    }
+    invoice-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1060;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .invoice-modal.show {
+        display: flex;
+    }
+
+    .invoice-modal-content {
+        background-color: #fff;
+        border-radius: 12px;
+        width: 700px;
+        max-width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        animation: slideIn 0.4s cubic-bezier(0.215, 0.610, 0.355, 1);
+    }
+
+    .invoice-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 25px;
+        border-bottom: 1px solid #edf2f9;
+    }
+
+    .invoice-modal-header h4 {
+        margin: 0;
+        font-weight: 600;
+        color: #2d3748;
+    }
+
+    .close-modal {
+        background: none;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        color: #718096;
+        transition: all 0.3s ease;
+    }
+
+    .close-modal:hover {
+        color: #2d3748;
+    }
+
+    .invoice-modal-body {
+        padding: 25px;
+    }
+
+    /* Invoice Detail Header */
+    .invoice-detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+    }
+
+    .invoice-status-badge {
+        padding: 8px 16px;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .invoice-status-badge.success {
+        background-color: rgba(40, 167, 69, 0.12);
+        color: #28a745;
+    }
+
+    .invoice-status-badge.pending {
+        background-color: rgba(255, 193, 7, 0.12);
+        color: #ffc107;
+    }
+
+    .invoice-status-badge.fail {
+        background-color: rgba(220, 53, 69, 0.12);
+        color: #dc3545;
+    }
+
+    .invoice-date {
+        color: #718096;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Invoice Detail Card */
+    .invoice-detail-card {
+        background-color: #f8fafc;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 1px solid #edf2f9;
+    }
+
+    .invoice-detail-card h5 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        font-weight: 600;
+        color: #2d3748;
+        font-size: 16px;
+    }
+
+    .invoice-detail-row {
+        display: flex;
+        margin-bottom: 12px;
+    }
+
+    .invoice-detail-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .invoice-detail-label {
+        width: 40%;
+        color: #718096;
+        font-size: 14px;
+    }
+
+    .invoice-detail-value {
+        width: 60%;
+        font-weight: 500;
+        color: #2d3748;
+        font-size: 14px;
+        word-break: break-word;
+    }
+
+    /* Course List */
+    .course-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .course-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px dashed #e2e8f0;
+    }
+
+    .course-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .course-thumbnail {
+        width: 60px;
+        height: 60px;
+        border-radius: 8px;
+        object-fit: cover;
+        margin-right: 15px;
+        background-color: #e2e8f0;
+    }
+
+    .course-info {
+        flex: 1;
+    }
+
+    .course-name {
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 5px;
+        font-size: 14px;
+    }
+
+    .course-price {
+        color: #6216FF;
+        font-weight: 500;
+        font-size: 14px;
+    }
+
+    /* Invoice Detail Footer */
+    .invoice-detail-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 15px;
+        margin-top: 25px;
+    }
+
+    /* Confirmation Modal */
+    .confirm-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1070;
+    }
+
+    .confirm-modal.show {
+        display: flex;
+    }
+
+    .confirm-modal-content {
+        background-color: #fff;
+        border-radius: 12px;
+        padding: 25px;
+        width: 400px;
+        text-align: center;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        animation: scaleIn 0.3s ease;
+    }
+
+    .confirm-modal-content h5 {
+        margin-top: 0;
+        color: #2d3748;
+        font-weight: 600;
+    }
+
+    .confirm-modal-content p {
+        margin-bottom: 20px;
+        color: #718096;
+    }
+
+    .confirm-actions {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+    }
+
+    @keyframes scaleIn {
+        from { transform: scale(0.9); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes slideIn {
+        from { transform: translateY(30px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+        .invoice-detail-row {
+            flex-direction: column;
+        }
+
+        .invoice-detail-label,
+        .invoice-detail-value {
+            width: 100%;
+        }
+
+        .invoice-detail-label {
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .invoice-detail-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .invoice-modal-content {
+            width: 95%;
+        }
+    }
+    .pagination-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+    .pagination-btn {
+        margin: 0 2px;
+    }
+    .pagination-size-container {
+        display: flex;
+        align-items: center;
+    }
+</style>
+
+    <script>
+        var filterArray = [];
+        var socket = new SockJS('/ws');
+        var stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function () {
+            console.log("ket noi thanh cong voi WEBSOCKET");
+            stompClient.subscribe('/topic/invoice', function (message) {
+                var invoiceList = JSON.parse(message.body);
+                console.log(invoiceList);
+                updateInvoiceList(invoiceList);
+
+            })
+            stompClient.send("/app/admin/invoice", {}, {});
+            stompClient.subscribe('/topic/invoice/detail', function(message) {
+                const invoiceDetail = JSON.parse(message.body);
+                console.log(invoiceDetail);
+                updateInvoiceDetail(invoiceDetail);
+            });
+        })
+
+
+        document.addEventListener("DOMContentLoaded", function () {
+
+            let searchOldValue;
+            let sortOldIndex = -1;
+            document.addEventListener('click', function(e) {
+                const detailBtn = e.target.closest('.detail-btn');
+                if (detailBtn) {
+                    const transactionId = detailBtn.getAttribute('data-id');
+                    openInvoiceDetail(transactionId);
+                }
+            });
+
+            document.getElementById('confirmCancelYes').addEventListener('click', function() {
+                if (currentTransactionId) {
+                    console.log(currentTransactionId);
+                    stompClient.send("/app/admin/invoice/cancel", {}, currentTransactionId);
+                    closeCancelModal();
+                    closeInvoiceModal();
+                }
+            });
+
+           document.querySelectorAll('.close-modal').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    closeInvoiceModal();
+                });
+            });
+
+            document.querySelector('#cancelConfirmModal .btn-secondary').addEventListener('click', function() {
+                closeCancelModal();
+            });
+            document.getElementById("search-input").addEventListener("input", function () {
+                let searchNewValue = this.value.trim();
+                console.log("Sending search query: ", searchNewValue);
+
+                let index = filterArray.indexOf(searchOldValue);
+                if (index < 0) {
+                    filterArray.push(searchNewValue);
+                } else {
+                    filterArray[index] = searchNewValue;
+                }
+                searchOldValue = searchNewValue;
+                console.log(filterArray);
+                stompClient.send("/app/admin/invoice/filter", {}, JSON.stringify(filterArray));
+            });
+
+
+            let filterArray = [];
+
+
+            document.querySelectorAll(".dropdown-item.sort-option").forEach(function (element) {
+                element.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    document.querySelectorAll(".dropdown-item.sort-option").forEach(link => link.classList.remove('active'));
+
+                    let typeSort = event.target.getAttribute("data-sort");
+
+                    filterArray = filterArray.filter(item => !item.startsWith("sort_"));
+
+                    filterArray.push("sort_" + typeSort);
+                    event.target.classList.add('active');
+
+                    console.log("Sorting & Filtering:", filterArray);
+                    sendFilters();
+                });
+            });
+            let dropdowns = document.querySelectorAll(".navbar-dropdown");
+
+            dropdowns.forEach(function (dropdown) {
+                let parent = dropdown.closest(".nav-item");
+                let toggle = parent.querySelector(".nav-link");
+
+                toggle.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    document.querySelectorAll(".navbar-dropdown.show").forEach(d => {
+                        if (d !== dropdown) d.classList.remove("show");
+                    });
+
+                    dropdown.classList.toggle("show");
+                });
+            });
+
+            document.addEventListener("click", function (event) {
+                document.querySelectorAll(".navbar-dropdown.show").forEach(d => {
+                    if (!d.contains(event.target)) {
+                        d.classList.remove("show");
+                    }
+                });
+            });
+            document.querySelector(".filter-method").addEventListener("change", function () {
+                let paymentMethod = this.value;
+
+                filterArray = filterArray.filter(item => !item.startsWith("payment_"));
+
+                if (paymentMethod !== "all") {
+                    filterArray.push("payment_" + paymentMethod);
+                }
+
+                console.log("Sorting & Filtering:", filterArray);
+                sendFilters();
+            });
+
+            function sendFilters() {
+                stompClient.send("/app/admin/invoice/filter", {}, JSON.stringify(filterArray));
+            }
+
+        })
+            window.onload = () => {
+            const activeBtn = document.querySelector(".tab-button.active");
+            const indicator = document.querySelector(".tab-indicator");
+            indicator.style.left = activeBtn.offsetLeft + "px";
+            indicator.style.width = activeBtn.offsetWidth + "px";
+            indicator.style.backgroundColor = "#28a745";
+        };
+        let currentTransactionId = null;
+
+        function openInvoiceDetail(transactionId) {
+            currentTransactionId = transactionId;
+
+            stompClient.send("/app/admin/invoice/detail", {}, transactionId);
+
+            document.getElementById('invoiceDetailModal').style.display = "show";
+        }
+
+        function closeInvoiceModal() {
+            document.getElementById('invoiceDetailModal').classList.remove('show');
+            currentTransactionId = null;
+        }
+
+        function confirmCancelTransaction() {
+            document.getElementById('cancelConfirmModal').classList.add('show');
+        }
+
+        function closeCancelModal() {
+            document.getElementById('cancelConfirmModal').classList.remove('show');
+        }
+
+        function printInvoice() {
+            const printWindow = window.open('', '', 'width=800,height=600');
+
+            const invoiceContent = document.querySelector('.invoice-modal-body').cloneNode(true);
+
+            printWindow.document.write(`
+
+        <head>
+          <title>Invoice #${currentTransactionId}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .invoice-detail-card { margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; }
+            .invoice-detail-row { display: flex; margin-bottom: 10px; }
+            .invoice-detail-label { width: 40%; color: #718096; }
+            .invoice-detail-value { width: 60%; font-weight: 500; }
+            h5 { margin-top: 5px; margin-bottom: 15px; }
+            .invoice-status-badge { padding: 5px 10px; border-radius: 20px; display: inline-block; margin-bottom: 20px; }
+            .success { background-color: #d4edda; color: #155724; }
+            .pending { background-color: #fff3cd; color: #856404; }
+            .fail { background-color: #f8d7da; color: #721c24; }
+            .course-item { padding: 10px 0; border-bottom: 1px dashed #e2e8f0; }
+            .invoice-date { margin-bottom: 20px; color: #718096; }
+            .invoice-header { text-align: center; margin-bottom: 30px; }
+            .print-logo { max-width: 150px; margin-bottom: 15px; }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-header">
+            <h2>Educatrix Invoice</h2>
+            <p class="invoice-date">Date: ${document.getElementById('invoice-date').textContent}</p>
+          </div>
+
+          <div class="invoice-status-badge ${document.getElementById('invoice-status-badge').classList.contains('success') ? 'success' :
+                document.getElementById('invoice-status-badge').classList.contains('pending') ? 'pending' : 'fail'}">
+            Status: ${document.getElementById('invoice-status').textContent}
+          </div>
+
+          ${invoiceContent.innerHTML}
+        </body>
+
+    `);
+
+            const printDoc = printWindow.document;
+            const buttons = printDoc.getElementsByTagName('button');
+            while(buttons.length > 0) {
+                buttons[0].parentNode.removeChild(buttons[0]);
+            }
+
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 500);
+        }
+
+
+
+        function updateInvoiceDetail(detail) {
+            console.log("Received invoice detail:", detail);
+
+            const statusBadge = document.getElementById('invoice-status-badge');
+            statusBadge.className = 'invoice-status-badge';
+            const status = detail.transactionStatus.toLowerCase();
+            statusBadge.classList.add(status);
+
+            document.getElementById('invoice-status').textContent = detail.transactionStatus;
+            const date = new Date(detail.transactionDate);
+            const formattedDate = date.toLocaleDateString('vi-VN');
+            console.log(formattedDate);
+            document.getElementById('invoice-date').textContent = formattedDate;
+            document.getElementById('detail-transaction-id').textContent = detail.transactionId;
+            document.getElementById('detail-payment-method').textContent = detail.methodPayment;
+
+            const formattedAmount = new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND'
+            }).format(detail.orderTotalAmount);
+
+            document.getElementById('detail-amount').textContent = formattedAmount;
+
+            if (detail.account) {
+                document.getElementById('detail-username').textContent = detail.account.username || 'N/A';
+                document.getElementById('detail-email').textContent = detail.email || 'N/A';
+                document.getElementById('detail-phone').textContent = detail.phoneNumber || 'N/A';
+            }
+
+            const coursesList = document.getElementById('purchased-courses-list');
+            coursesList.innerHTML = '';
+
+            if (detail.courses && detail.courses.length > 0) {
+                detail.courses.forEach(course => {
+                    const coursePrice = new Intl.NumberFormat('vi-VN', {
+                        style: 'currency',
+                        currency: 'VND'
+                    }).format(course.price);
+
+                    const courseItem = document.createElement('div');
+                    courseItem.className = 'course-item';
+                    courseItem.innerHTML = `
+                <img src="${course.imageUrl || '/images/placeholder.jpg'}" alt="${course.courseName}" class="course-thumbnail">
+                <div class="course-info">
+                    <div class="course-name">${course.courseName}</div>
+                    <div class="course-price">${coursePrice}</div>
+                </div>
+            `;
+                    coursesList.appendChild(courseItem);
+                });
+            } else {
+                coursesList.innerHTML = '<p>No courses found in this transaction.</p>';
+            }
+
+            const cancelBtn = document.getElementById('cancelTransaction');
+            if (status !== 'pending') {
+                cancelBtn.disabled = true;
+                cancelBtn.classList.add('disabled');
+            } else {
+                cancelBtn.disabled = false;
+                cancelBtn.classList.remove('disabled');
+            }
+        }
+        const paginationConfig = {
+            itemsPerPage: 5,
+            currentPage: 1,
+            totalPages: 1
+        };
+
+        function updateInvoiceList(invoiceList) {
+            const allInvoiceData = {
+                success: [],
+                pending: [],
+                fail: []
+            };
+
+            invoiceList.forEach(function (invoiceElement) {
+                let status = (invoiceElement.transactionStatus || "").trim().toLowerCase();
+                console.log(`Đang xử lý: ID ${invoiceElement.transactionId}, Status: '${status}'`);
+
+                if (status === "success") {
+                    allInvoiceData.success.push(invoiceElement);
+                } else if (status === "pending") {
+                    allInvoiceData.pending.push(invoiceElement);
+                } else if (status === "fail") {
+                    allInvoiceData.fail.push(invoiceElement);
+                } else {
+                    console.warn("Lỗi: Giá trị transactionStatus không hợp lệ", invoiceElement.transactionStatus);
+                }
+            });
+
+            $('#invoice-list-success').empty();
+            $('#invoice-list-pending').empty();
+            $('#invoice-list-fail').empty();
+
+            updateCurrentTab(allInvoiceData);
+
+            createPagination(allInvoiceData);
+        }
+        function updateCurrentTab(allInvoiceData) {
+            let currentTab = 'success';
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                if (btn.classList.contains('active')) {
+                    currentTab = btn.getAttribute('data-tab');
+                }
+            });
+
+            const currentData = allInvoiceData[currentTab];
+
+            paginationConfig.totalPages = Math.ceil(currentData.length / paginationConfig.itemsPerPage);
+            if (paginationConfig.currentPage > paginationConfig.totalPages) {
+                paginationConfig.currentPage = 1;
+            }
+            const startIndex = (paginationConfig.currentPage - 1) * paginationConfig.itemsPerPage;
+            const endIndex = startIndex + paginationConfig.itemsPerPage;
+            const currentPageData = currentData.slice(startIndex, endIndex);
+
+            renderInvoiceData(currentPageData, currentTab);
+        }
+
+        function renderInvoiceData(invoiceData, tabName) {
+            const tableBody = $(`#invoice-list-${tabName}`);
+            tableBody.empty();
+
+            invoiceData.forEach(function (invoiceElement) {
+                let formattedAmount = new Intl.NumberFormat('vi-VN', {
+                    style: 'currency',
+                    currency: 'VND'
+                }).format(invoiceElement.orderTotalAmount);
+
+                let invoiceRow = `
+        <tr>
+            <td>${invoiceElement.transactionId}</td>
+            <td>${invoiceElement.accountUsername || 'N/A'}</td>
+            <td>${formattedAmount}</td>
+            <td>${invoiceElement.methodPayment}</td>
+            <td>${invoiceElement.transactionStatus}</td>
+            <td>${invoiceElement.transactionDate}</td>
+            <td>
+                <button class="btn btn-primary detail-btn" data-id="${invoiceElement.transactionId}">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+
+
+            </td>
+        </tr>`;
+
+                tableBody.append(invoiceRow);
+            });
+        }
+
+        function createPagination(allInvoiceData) {
+            let currentTab = 'success';
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                if (btn.classList.contains('active')) {
+                    currentTab = btn.getAttribute('data-tab');
+                }
+            });
+
+            const currentData = allInvoiceData[currentTab];
+
+            paginationConfig.totalPages = Math.ceil(currentData.length / paginationConfig.itemsPerPage);
+
+            const paginationContainer = document.getElementById('pagination-container');
+            if (!paginationContainer) {
+                const container = document.createElement('div');
+                container.id = 'pagination-container';
+                container.className = 'pagination-container';
+
+                const tableContainer = document.querySelector('.table-container') || document.querySelector('table').parentNode;
+                tableContainer.insertAdjacentElement('afterend', container);
+            }
+
+            updatePaginationUI();
+        }
+
+        function updatePaginationUI() {
+            const paginationContainer = document.getElementById('pagination-container');
+            paginationContainer.innerHTML = '';
+
+            const prevButton = document.createElement('button');
+            prevButton.className = 'btn btn-sm btn-outline-secondary pagination-btn';
+            prevButton.innerHTML = '&laquo; Trước';
+            prevButton.disabled = paginationConfig.currentPage === 1;
+            prevButton.addEventListener('click', () => {
+                if (paginationConfig.currentPage > 1) {
+                    paginationConfig.currentPage--;
+                    updateInvoicesByPage();
+                }
+            });
+            paginationContainer.appendChild(prevButton);
+
+            const maxButtons = 5;
+            let startPage = Math.max(1, paginationConfig.currentPage - Math.floor(maxButtons / 2));
+            let endPage = Math.min(paginationConfig.totalPages, startPage + maxButtons - 1);
+
+            if (endPage - startPage + 1 < maxButtons && startPage > 1) {
+                startPage = Math.max(1, endPage - maxButtons + 1);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.className = 'btn btn-sm pagination-btn';
+                pageButton.classList.add(i === paginationConfig.currentPage ? 'btn-primary' : 'btn-outline-secondary');
+                pageButton.textContent = i;
+                pageButton.addEventListener('click', () => {
+                    paginationConfig.currentPage = i;
+                    updateInvoicesByPage();
+                });
+                paginationContainer.appendChild(pageButton);
+            }
+
+            const nextButton = document.createElement('button');
+            nextButton.className = 'btn btn-sm btn-outline-secondary pagination-btn';
+            nextButton.innerHTML = 'Sau &raquo;';
+            nextButton.disabled = paginationConfig.currentPage === paginationConfig.totalPages || paginationConfig.totalPages === 0;
+            nextButton.addEventListener('click', () => {
+                if (paginationConfig.currentPage < paginationConfig.totalPages) {
+                    paginationConfig.currentPage++;
+                    updateInvoicesByPage();
+                }
+            });
+            paginationContainer.appendChild(nextButton);
+
+            const pageSizeSelector = document.createElement('select');
+            pageSizeSelector.className = 'form-select form-select-sm ms-2 pagination-size-selector';
+            pageSizeSelector.style.width = '80px';
+            pageSizeSelector.style.display = 'inline-block';
+
+            [1,5,10, 25, 50, 100].forEach(size => {
+                const option = document.createElement('option');
+                option.value = size;
+                option.textContent = size;
+                option.selected = paginationConfig.itemsPerPage === size;
+                pageSizeSelector.appendChild(option);
+            });
+
+            pageSizeSelector.addEventListener('change', (e) => {
+                paginationConfig.itemsPerPage = parseInt(e.target.value);
+                paginationConfig.currentPage = 1;
+                updateInvoicesByPage();
+            });
+
+            const sizeContainer = document.createElement('div');
+            sizeContainer.className = 'pagination-size-container ms-3';
+            sizeContainer.appendChild(document.createTextNode('Hiển thị: '));
+            sizeContainer.appendChild(pageSizeSelector);
+
+            paginationContainer.appendChild(sizeContainer);
+        }
+
+        function updateInvoicesByPage() {
+            stompClient.send("/app/admin/invoice", {}, {});
+        }
+
+        function showTab(tab, element, color) {
+            document.querySelectorAll(".invoice-tab").forEach(tbody => {
+                tbody.style.display = "none";
+                tbody.classList.remove("slide-in");
+            });
+
+            const activeTab = document.getElementById(`invoice-list-${tab}`);
+            if (activeTab) {
+                activeTab.style.display = "table-row-group";
+                activeTab.classList.add("slide-in");
+            }
+
+            document.querySelectorAll(".tab-button").forEach(btn => {
+                btn.classList.remove("active");
+                btn.setAttribute('data-tab', btn.getAttribute('onclick').split("'")[1]);
+            });
+            element.classList.add("active");
+
+            const indicator = document.querySelector(".tab-indicator");
+            indicator.style.left = element.offsetLeft + "px";
+            indicator.style.width = element.offsetWidth + "px";
+            indicator.style.backgroundColor = color;
+
+            document.querySelectorAll(".tab-button").forEach(btn => btn.style.color = "#555");
+            element.style.color = color;
+
+            paginationConfig.currentPage = 1;
+            updateInvoicesByPage();
+        }
+
+
+
+    </script>
+</head>
+<body>
+<div class="container-scroller">
+
+    <div th:replace="~{/view/admin/partials/_navbar :: _navbar}"></div>
+    <!-- partial -->
+    <div class="container-fluid page-body-wrapper">
+        <!-- partial:partials/_sidebar.html -->
+        <div th:replace="~{/view/admin/partials/_sidebar :: _sidebar}"></div>
+        <!-- partial -->
+        <div class="main-panel">
+            <div class="content-wrapper">
+                <div class="container-fluid px-4">
+                    <div class="filter-container">
+                        <label>
+                            <input type="search" id="search-input" class="search-input" placeholder="Search Transaction ID">
+                        </label>
+                        <div class="d-flex gap-3">
+                            <div class="dropdown d-inline-block">
+                                <button class="btn dropdown-toggle sort-btn" style="background-color: #EAE4F3; border-radius: 10px; color:#6216FF" type="button" data-bs-toggle="dropdown">
+                                    <i class="fa-solid fa-sort"></i> Sort
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-dark">
+                                    <li><a class="dropdown-item sort-option" data-sort="amount_asc" href="#"><i class="fa-solid fa-arrow-up"></i> Amount Ascending</a></li>
+                                    <li><a class="dropdown-item sort-option" data-sort="amount_desc" href="#"><i class="fa-solid fa-arrow-down"></i> Amount Descending</a></li>
+                                    <li><a class="dropdown-item sort-option" data-sort="date_asc" href="#"><i class="fa-solid fa-calendar-alt"></i> Oldest First</a></li>
+                                    <li><a class="dropdown-item sort-option" data-sort="date_desc" href="#"><i class="fa-solid fa-calendar-check"></i> Newest First</a></li>
+                                </ul>
+                            </div>
+
+                            <div class="dropdown d-inline-block">
+                                <button class="btn dropdown-toggle filter-btn" style="background-color: #EAE4F3; border-radius: 10px; color:#6216FF" type="button" data-bs-toggle="dropdown">
+                                    <i class="fa-solid fa-filter"></i> Filter
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-dark">
+                                    <li>
+                                        <div class="px-3 py-2">
+                                            <h6 class="text-light">Filter by Payment Method</h6>
+                                            <select class="form-select filter-method">
+                                                <option value="all">All</option>
+                                                <option value="VNPAY">VNPAY</option>
+                                                <option value="VIETQR">VIETQR</option>
+                                                <option value="MOMO">MOMO</option>
+                                            </select>
+                                        </div>
+                                    </li>
+
+                                </ul>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="container mt-4">
+                        <h2>Invoice List</h2>
+                        <p>Total invoice <strong>45</strong></p>
+
+                        <!-- Tab Menu -->
+                        <div class="tab-container">
+                            <div class="tab-buttons">
+                                <button class="tab-button active" data-tab="success" onclick="showTab('success', this, '#28a745')">Success</button>
+                                <button class="tab-button" data-tab="pending" onclick="showTab('pending', this, '#ffc107')">Pending</button>
+                                <button class="tab-button" data-tab="fail" onclick="showTab('fail', this, '#dc3545')">Fail</button>
+                                <div class="tab-indicator"></div>
+                            </div>
+                        </div>
+
+                        <!-- Table -->
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-dark">
+                                <tr>
+                                    <th th:text="#{transaction.id}"></th>
+                                    <th th:text="#{user.username}"></th>
+                                    <th th:text="#{transaction.amount}"></th>
+                                    <th th:text="#{transaction.paymentMethod}"></th>
+                                    <th th:text="#{course.created_time}"></th>
+                                    <th th:text="#{application.teacher.status}"></th>
+                                    <th th:text="#{action}"></th>
+                                </tr>
+                                </thead>
+                                <tbody id="invoice-list-success" class="invoice-tab active"></tbody>
+                                <tbody id="invoice-list-pending" class="invoice-tab" style="display: none"></tbody>
+                                <tbody id="invoice-list-fail" class="invoice-tab" style="display: none"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="deleteModal" class="confirm-modal">
+                        <div class="confirm-modal-content">
+                            <p th:text="#{confirm.delete.course}"></p>
+                            <button name="confirmYes" class="btn btn-primary" th:text="#{confirm.yes}"></button>
+                            <button name="confirmNo" class="btn btn-danger" th:text="#{confirm.no}"></button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <div id="invoiceDetailModal hidden" class="invoice-modal">
+                <div class="invoice-modal-content">
+                    <div class="invoice-modal-header">
+                        <h4>Transaction Details</h4>
+                        <button class="close-modal" onclick="closeInvoiceModal()">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div class="invoice-modal-body">
+                        <div class="invoice-detail-header">
+                            <div class="invoice-status-badge" id="invoice-status-badge">
+                                <span id="invoice-status">Success</span>
+                            </div>
+                            <div class="invoice-date">
+                                <i class="fa-regular fa-calendar"></i>
+                                <span id="invoice-date">2025-03-18 14:30:45</span>
+                            </div>
+                        </div>
+
+                        <div class="invoice-detail-card">
+                            <div class="invoice-detail-row">
+                                <div class="invoice-detail-label">Transaction ID:</div>
+                                <div class="invoice-detail-value" id="detail-transaction-id">VNP93857489357</div>
+                            </div>
+                            <div class="invoice-detail-row">
+                                <div class="invoice-detail-label">Payment Method:</div>
+                                <div class="invoice-detail-value" id="detail-payment-method">VNPAY</div>
+                            </div>
+                            <div class="invoice-detail-row">
+                                <div class="invoice-detail-label">Amount:</div>
+                                <div class="invoice-detail-value" id="detail-amount">1,200,000 ₫</div>
+                            </div>
+                        </div>
+
+                        <div class="invoice-detail-card">
+                            <h5>User Information</h5>
+                            <div class="invoice-detail-row">
+                                <div class="invoice-detail-label">Username:</div>
+                                <div class="invoice-detail-value" id="detail-username">johndoe</div>
+                            </div>
+                            <div class="invoice-detail-row">
+                                <div class="invoice-detail-label">Email:</div>
+                                <div class="invoice-detail-value" id="detail-email">john.doe@example.com</div>
+                            </div>
+                            <div class="invoice-detail-row">
+                                <div class="invoice-detail-label">Phone:</div>
+                                <div class="invoice-detail-value" id="detail-phone">+84 912 345 678</div>
+                            </div>
+                        </div>
+
+                        <div class="invoice-detail-card">
+                            <h5>Purchased Courses</h5>
+                            <div class="course-list" id="purchased-courses-list">
+                                <!-- Courses will be dynamically added here -->
+                            </div>
+                        </div>
+
+                        <div class="invoice-detail-footer">
+                            <button class="btn btn-primary" onclick="printInvoice()">
+                                <i class="fa-solid fa-print"></i> Print
+                            </button>
+                            <button class="btn btn-danger" id="cancelTransaction" onclick="confirmCancelTransaction()">
+                                <i class="fa-solid fa-ban"></i> Cancel Transaction
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="cancelConfirmModal" class="confirm-modal">
+                <div class="confirm-modal-content">
+                    <h5>Cancel Transaction</h5>
+                    <p>Are you sure you want to cancel this transaction? This action cannot be undone.</p>
+                    <div class="confirm-actions">
+                        <button id="confirmCancelYes" class="btn btn-danger">Yes, Cancel It</button>
+                        <button onclick="closeCancelModal()" class="btn btn-secondary">No, Keep It</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<script th:src="@{/js/vendor.bundle.base.js}"></script>
+<script th:src="@{/js/vendor.bundle.addons.js}"></script>
+
+<script th:src="@{/js/off-canvas.js}"></script>
+<script th:src="@{/js/misc.js}"></script>
+
+<script th:src="@{/js/dashboard.js}"></script>
+
+</body>
+</html>

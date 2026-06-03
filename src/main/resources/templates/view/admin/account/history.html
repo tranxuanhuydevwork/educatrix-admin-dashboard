@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Purple Admin</title>
+    <link rel="stylesheet" th:src="@{/css/materialdesignicons.min.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="static/css/vendor.bundle.base.css">
+    <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
+    <link th:href="@{/css/style.css}" rel="stylesheet" />
+    <link th:href="@{/css/style111.css}" rel="stylesheet" />
+    <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+    <link rel="shortcut icon" href="images/favicon.png" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script> <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function closeModal() {
+            document.getElementById("modalView").style.display="none";
+        }
+        function openProof(type) {
+            let proofImage = document.getElementById("proofImage");
+            if (type === "ban") {
+                proofImage.src = "https://via.placeholder.com/500x300/ff0000/ffffff?text=Bằng+chứng+Banned";
+            } else if (type === "suspend") {
+                proofImage.src = "https://via.placeholder.com/500x300/ff9900/ffffff?text=Bằng+chứng+Suspended";
+            }else if(type === "active"){
+                proofImage.src = "https://via.placeholder.com/500x300/ff9900/ffffff?text=Bằng+chứng+Active";
+
+            }
+
+            document.getElementById("proofModal").style.display = "block";
+        }
+
+        function closeProof() {
+            document.getElementById("proofModal").style.display = "none";
+        }
+
+        function outsideClick(event) {
+            let modal = document.getElementById("proofModal");
+            if (event.target === modal) {
+                closeProof();
+            }
+        }
+
+
+        document.addEventListener('DOMContentLoaded', function () {
+            let modalHistory = document.getElementById("timeline");
+            console.log(modalHistory);
+            document.getElementById("accountHistoryList").addEventListener("click", function (event) {
+                if (event.target.classList.contains('btn-gradient-info')) {
+                    let idHistory = event.target.getAttribute("data-id");
+                    console.log(idHistory);
+                    modalHistory.style.display = 'flex';
+                    stompClient.send("/app/admin/users/history/detail", {}, idHistory);
+
+
+                    stompClient.subscribe('/topic/history', function (message) {
+                        var response = JSON.parse(message.body);
+                        if (response.type === 'history_detail') {
+                            timeLineHistory(response.data);
+                        }
+                    });
+                }
+            });
+        });
+        var socket = new SockJS('/ws');
+        var stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function() {
+            stompClient.subscribe('/topic/history', function(message) {
+                var response = JSON.parse(message.body);
+                if (response.type === 'history_list') {
+                    console.log(response.data);
+                    accountHistoryShowList(response.data);
+                } else if (response.type === 'history_detail') {
+                    timeLineHistory(response.data);
+                }
+            });
+            stompClient.send("/app/admin/users/history", {}, {});
+        });
+
+        const ROWS_PER_PAGE = 10;
+        let currentPage = 1;
+        let accountHistoryData = [];
+        let originalAccountHistoryData = [];
+
+        function accountHistoryShowList(accountHistoryStatusList) {
+            originalAccountHistoryData = [...accountHistoryStatusList];
+            accountHistoryData = [...accountHistoryStatusList];
+
+            if (!$('#items-per-page-container').length) {
+                addItemsPerPageSelector();
+            }
+
+            renderPagination();
+            displayCurrentPage();
+        }
+
+        function displayCurrentPage() {
+            $('#accountHistoryList').empty();
+
+            const rowsPerPage = parseInt($('#items-per-page').val() || ROWS_PER_PAGE);
+
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = Math.min(startIndex + rowsPerPage, accountHistoryData.length);
+
+            const currentPageData = accountHistoryData.slice(startIndex, endIndex);
+
+            if (currentPageData.length === 0) {
+                $('#accountHistoryList').append('<tr><td colspan="6" class="text-center">Không có dữ liệu để hiển thị</td></tr>');
+            } else {
+                currentPageData.forEach(function(accountHistoryElements) {
+                    $('#accountHistoryList').append(`
+                <tr>
+
+                    <td>${accountHistoryElements.id}</td>
+                    <td>${accountHistoryElements.account?.username || ''}</td>
+                    <td>${accountHistoryElements.newStatus}</td>
+                    <td>${accountHistoryElements.changeTime}</td>
+                    <td>
+                        <button class="btn btn-gradient-info" title="View" data-id="${accountHistoryElements.account?.id || ''}">
+                            <i class="fa-solid fa-eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+            `);
+                });
+            }
+
+            updatePaginationInfo();
+        }
+
+        function renderPagination() {
+            const rowsPerPage = parseInt($('#items-per-page').val() || ROWS_PER_PAGE);
+
+            const totalPages = Math.ceil(accountHistoryData.length / rowsPerPage);
+
+            let paginationHTML = `
+        <div class="pagination-container">
+            <div class="pagination-info">
+                Hiển thị <span id="start-record"></span> đến <span id="end-record"></span> của <span id="total-records">${accountHistoryData.length}</span> bản ghi
+            </div>
+            <div class="pagination-controls">
+                <button id="prev-page" class="btn btn-sm btn-outline-primary" ${currentPage === 1 ? 'disabled' : ''}>
+                    <i class="fa-solid fa-chevron-left"></i> Trước
+                </button>
+                <div id="page-numbers" class="page-numbers"></div>
+                <button id="next-page" class="btn btn-sm btn-outline-primary" ${currentPage === totalPages ? 'disabled' : ''}>
+                    Sau <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+            if ($('.pagination-container').length === 0) {
+                // Insert pagination after table
+                $('.table-responsive').after(paginationHTML);
+
+                addPaginationStyles();
+
+                attachPaginationEvents();
+            }
+
+            updatePageNumbers(totalPages);
+        }
+
+        function updatePageNumbers(totalPages) {
+            const pageNumbers = $('#page-numbers');
+            pageNumbers.empty();
+
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + 4);
+
+            if (endPage - startPage < 4) {
+                startPage = Math.max(1, endPage - 4);
+            }
+
+            if (startPage > 1) {
+                pageNumbers.append(`
+            <button class="btn btn-sm page-number" data-page="1">1</button>
+            ${startPage > 2 ? '<span class="page-ellipsis">...</span>' : ''}
+        `);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                pageNumbers.append(`
+            <button class="btn btn-sm page-number ${i === currentPage ? 'btn-primary active' : 'btn-outline-primary'}" data-page="${i}">${i}</button>
+        `);
+            }
+
+            if (endPage < totalPages) {
+                pageNumbers.append(`
+            ${endPage < totalPages - 1 ? '<span class="page-ellipsis">...</span>' : ''}
+            <button class="btn btn-sm page-number" data-page="${totalPages}">${totalPages}</button>
+        `);
+            }
+
+            $('.page-number').on('click', function() {
+                currentPage = parseInt($(this).data('page'));
+                displayCurrentPage();
+                updatePageNumbers(totalPages);
+                updatePaginationButtons(totalPages);
+            });
+        }
+
+        function updatePaginationButtons(totalPages) {
+            $('#prev-page').prop('disabled', currentPage === 1);
+            $('#next-page').prop('disabled', currentPage === totalPages);
+        }
+
+        function updatePaginationInfo() {
+            const rowsPerPage = parseInt($('#items-per-page').val() || ROWS_PER_PAGE);
+            const startRecord = accountHistoryData.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+            const endRecord = Math.min(currentPage * rowsPerPage, accountHistoryData.length);
+
+            $('#start-record').text(startRecord);
+            $('#end-record').text(endRecord);
+            $('#total-records').text(accountHistoryData.length);
+        }
+
+        function attachPaginationEvents() {
+            $('#prev-page').on('click', function() {
+                if (currentPage > 1) {
+                    currentPage--;
+                    displayCurrentPage();
+                    const rowsPerPage = parseInt($('#items-per-page').val() || ROWS_PER_PAGE);
+                    updatePageNumbers(Math.ceil(accountHistoryData.length / rowsPerPage));
+                    updatePaginationButtons(Math.ceil(accountHistoryData.length / rowsPerPage));
+                }
+            });
+
+            $('#next-page').on('click', function() {
+                const rowsPerPage = parseInt($('#items-per-page').val() || ROWS_PER_PAGE);
+                const totalPages = Math.ceil(accountHistoryData.length / rowsPerPage);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    displayCurrentPage();
+                    updatePageNumbers(totalPages);
+                    updatePaginationButtons(totalPages);
+                }
+            });
+        }
+
+        function addPaginationStyles() {
+            $('<style>')
+                .prop('type', 'text/css')
+                .html(`
+            .pagination-container {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-top: 15px;
+                padding: 10px 0;
+                border-top: 1px solid #dee2e6;
+            }
+            .pagination-info {
+                color: #6c757d;
+                font-size: 0.875rem;
+            }
+            .pagination-controls {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+            .page-numbers {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+            .page-number {
+                min-width: 32px;
+                height: 32px;
+                padding: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .page-ellipsis {
+                margin: 0 5px;
+            }
+            .btn-sm {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.875rem;
+                border-radius: 0.2rem;
+            }
+            .items-per-page-container {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+            #items-per-page {
+                width: 70px;
+                padding: 0.25rem;
+                border-radius: 4px;
+                border: 1px solid #ced4da;
+            }
+        `)
+                .appendTo('head');
+        }
+
+        function addItemsPerPageSelector() {
+            const itemsPerPageHTML = `
+        <div id="items-per-page-container" class="items-per-page-container">
+            <label for="items-per-page">Hiển thị</label>
+            <select id="items-per-page" class="form-select form-select-sm">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+            <span>mục mỗi trang</span>
+        </div>
+    `;
+
+            $('.table-responsive').before(itemsPerPageHTML);
+
+            $('#items-per-page').on('change', function() {
+                currentPage = 1;
+                renderPagination();
+                displayCurrentPage();
+            });
+        }
+
+        $(document).ready(function() {
+            $('#search-input').on('input', function() {
+                const searchTerm = $(this).val().toLowerCase().trim();
+
+                if (searchTerm === '') {
+                    accountHistoryData = [...originalAccountHistoryData];
+                } else {
+                    accountHistoryData = originalAccountHistoryData.filter(function(item) {
+                        return (
+                            (item.account?.username || '').toLowerCase().includes(searchTerm) ||
+                            (item.newStatus || '').toLowerCase().includes(searchTerm) ||
+                            (item.id.toString() || '').includes(searchTerm)
+                        );
+                    });
+                }
+
+                currentPage = 1;
+                renderPagination();
+                displayCurrentPage();
+
+                if (accountHistoryData.length === 0) {
+                    $('#accountHistoryList').html(
+                        '<tr><td colspan="6" class="text-center">Không tìm thấy kết quả phù hợp</td></tr>'
+                    );
+                }
+            });
+        });
+
+        function timeLineHistory(listHistoryOfAccount) {
+            let timeline = $('#timeline-content');
+            timeline.empty();
+
+            if (listHistoryOfAccount.length === 0) {
+                timeline.append('<p>No history found.</p>');
+            } else {
+                listHistoryOfAccount.forEach(function (historyLog) {
+                    console.log( "Debug:" + historyLog.newStatus);
+                    let iconClass = historyLog.newStatus === "Banned" ? "fas fa-ban status-banned" :
+                        historyLog.newStatus === "Admin" ? "fas fa-check-circle status-active" :
+                            "fas fa-info-circle status-info";
+
+                    let statusText = historyLog.newStatus === "Banned" ? "Tài khoản bị cấm" :
+                        historyLog.newStatus === "Active" ? "Tài khoản đã được mở khóa" :
+                            "Trạng thái khác";
+
+                    let proofType = historyLog.newStatus ? historyLog.newStatus.toLowerCase() : "unknown";
+                    const formatDate = (dateString) => {
+                        const date = new Date(dateString);
+                        return date.toLocaleString();
+                    };
+                    let timeChange = formatDate(historyLog.changeTime);
+                    timeline.append(`
+                <div class="timeline-item">
+                    <div class="timeline-header">
+                        <i class="${iconClass}"></i>
+                        <span>${statusText}</span>
+                    </div>
+                    <div class="timeline-time">${timeChange}</div>
+                    <button class="proof-btn" onclick="openProof('${proofType}')">📂 Xem bằng chứng</button>
+                </div>
+            `);
+                });
+            }
+
+            document.getElementById("timeline").style.display = "block";
+            document.getElementById("timeline-overlay").style.display = "block";
+        }
+
+
+        function closeTimeline() {
+            document.getElementById("timeline").style.display = "none";
+            document.getElementById("timeline-overlay").style.display = "none";
+        }
+
+
+    </script>
+
+</head>
+<body>
+<div class="container-scroller">
+
+    <div th:replace="~{/view/admin/partials/_navbar :: _navbar}"></div>
+    <!-- partial -->
+    <div class="container-scroller">
+
+        <div th:replace="~{/view/admin/partials/_navbar :: _navbar}"></div>
+        <!-- partial -->
+        <div class="container-fluid page-body-wrapper">
+            <div th:replace="~{/view/admin/partials/_sidebar :: _sidebar}"></div>
+            <div class="main-panel">
+                <div class="content-wrapper">
+                    <div class="container-fluid px-4">
+
+                        <ol class="breadcrumb mb-4">
+                            <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+                            <li class="breadcrumb-item active">Users</li>
+                        </ol>
+                        <div class="filter-container">
+                            <label>
+                                <input type="text" id="search-input" class="search-input" placeholder="Search Name">
+
+                            </label>
+
+                            <div class="dropdown">
+
+                                <button style="background-color: #EAE4F3; border-radius: 10px;color:#6216FF" type="button" data-bs-toggle="dropdown">
+                                    <i class="fa-solid fa-sort"></i> <span style="margin-right: 2px"> Sort</span>
+                                </button>
+
+                                <ul class="dropdown-menu dropdown-menu-dark">
+
+                                    <li class="dropdown">
+                                        <a class="dropdown-item dropdown-toggle">By Name</a>
+
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#">Sort A-Z</a></li>
+                                            <li><a class="dropdown-item" href="#">Sort Z-A</a></li>
+                                        </ul>
+                                    </li>
+                                    <li class="dropdown" name="filter-sort">
+                                        <a class="dropdown-item">Sort Course Point</a>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item">Ascending</a></li>
+                                            <li><a class="dropdown-item">Descending</a></li>
+                                        </ul>
+                                    </li>
+
+                                    <li class="dropdown">
+                                        <a class="dropdown-item">Sort Earn Money</a>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#">Ascending</a></li>
+                                            <li><a class="dropdown-item" href="#">Descending</a></li>
+                                        </ul>
+
+                                    </li>
+                                </ul>
+
+
+                                <button style="background-color: #EAE4F3; color:#6216FF;border-radius: 10px" type="button" data-bs-toggle="dropdown">
+                                    <i class="fa-solid fa-filter"></i> <span style="margin-right: 2px"> Filter</span>
+                                </button>
+
+                                <ul class="dropdown-menu dropdown-menu-dark">
+                                    <li class="dropdown">
+                                        <a class="dropdown-item">Role</a>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item">Learner</a></li>
+                                            <li><a class="dropdown-item">Teacher</a></li>
+                                        </ul>
+                                    </li>
+                                    <li class="dropdown">
+                                        <a class="dropdown-item">Status</a>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#">ACTIVE</a></li>
+                                            <li><a class="dropdown-item" href="#">BANNED</a></li>
+                                        </ul>
+                                    </li>
+                                    <li><a class="dropdown-item">Something else here</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item">Separated link</a></li>
+                                </ul>
+                            </div>
+
+
+                        </div>
+
+                    </div>
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">List Account</h4>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                            <tr class="table-info">
+                                <th scope="col" th:text="#{historystatus.id}"></th>
+                                <th scope="col" th:text="#{user.username}"></th>
+                                <th scope="col" th:text="#{user.currentstatus}"></th>
+                                <th scope="col" th:text="#{user.changeTimeStatus}"></th>
+                                <th scope="col" th:text="#{action}"></th>
+                            </tr>
+                            </thead>
+                            <tbody id="accountHistoryList">
+
+                            </tbody>
+                        </table>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+                <div id="timeline-overlay">
+                <div class="timeline-container" id="timeline">
+                    <span class="close-btn" onclick="closeTimeline()">&times;</span>
+                    <h3 th:text="#{historystatus.account}"></h3>
+                    <div id="timeline-content">
+                    </div>
+                </div>
+                </div>
+                <!-- Modal -->
+        <div id="proofModal" class="modal" onclick="outsideClick(event)">
+            <div class="modal-content">
+                <span class="close-btn" onclick="closeProof()">&times;</span>
+                <h3>Bằng chứng vi phạm</h3>
+                <img id="proofImage" src="" alt="Bằng chứng" style="width: 100%; border-radius: 8px;">
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+        <div th:replace="~{/view/admin/partials/_footer :: _footer}"></div>
+    </div>
+<script th:src="@{js/vendor.bundle.base.js}"></script>
+<script th:src="@{js/vendor.bundle.addons.js}"></script>
+<script th:src="@{js/off-canvas.js}"></script>
+<script th:src="@{js/misc.js}"></script>
+<!--&lt;!&ndash; endinject &ndash;&gt;-->
+<!--&lt;!&ndash; Custom js for this page&ndash;&gt;-->
+<script th:src="@{js/dashboard.js}"></script>
+<!-- End custom js for this page-->
+</body>
+
+</html>

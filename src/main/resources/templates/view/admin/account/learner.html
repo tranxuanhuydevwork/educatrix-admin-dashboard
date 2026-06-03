@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Purple Admin</title>
+    <link rel="stylesheet" th:src="@{/css/materialdesignicons.min.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="static/css/vendor.bundle.base.css">
+    <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
+    <link th:href="@{/css/style.css}" rel="stylesheet" />
+    <link th:href="@{/css/style111.css}" rel="stylesheet" />
+    <link th:href="@{/css/learner.css}" rel="stylesheet"/>
+    <link th:href="@{/css/chatopenai.css}" rel="stylesheet"/>
+    <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+    <link rel="shortcut icon" href="images/favicon.png" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script> <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script th:src="@{/js/chat.js}"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            let activeAccountsData = [];
+            let bannedAccountsData = [];
+            let count = 0;
+            let selectedUserId = null;
+            let actionCurrent = null;
+            let itemsPerPage = 5;
+            let currentActiveAccountPage = 1;
+            let currentBannedAccountPage = 1;
+
+            const socket = new SockJS('/ws');
+            const stompClient = Stomp.over(socket);
+
+            stompClient.connect({}, function() {
+                console.log("✅ WebSocket connection successful!");
+
+                stompClient.subscribe('/topic/learner', function(message) {
+                    const users = JSON.parse(message.body);
+                    console.log("📥 User list received:", users);
+                    updateItemList(users);
+                });
+
+                stompClient.send("/app/admin/users/learner", {}, "");
+            }, function(error) {
+                console.error("❌ WebSocket connection error:", error);
+            });
+
+            function updateItemList(accountList) {
+                if (!accountList || !Array.isArray(accountList)) {
+                    console.error("Invalid account list received:", accountList);
+                    return;
+                }
+
+                console.log("Processing account list:", accountList);
+                activeAccountsData = accountList.filter(account => account.status === "Active");
+                bannedAccountsData = accountList.filter(account => account.status === "Banned");
+
+                console.log("Active accounts:", activeAccountsData.length);
+                console.log("Banned accounts:", bannedAccountsData.length);
+
+                renderPaginationControls('active', activeAccountsData.length);
+                renderPaginationControls('banned', bannedAccountsData.length);
+
+                displayAccountPage('active', 1);
+                displayAccountPage('banned', 1);
+
+                initTabButtons();
+            }
+
+            function initTabButtons() {
+                const tabButtons = document.querySelectorAll(".tab-button");
+
+                tabButtons.forEach(button => {
+                    button.removeEventListener("click", tabClickHandler);
+                    button.addEventListener("click", tabClickHandler);
+                });
+
+                const activeTab = document.querySelector(".tab-button.active");
+                if (activeTab) {
+                    const tabId = activeTab.getAttribute("data-tab") || "activeAccountTab";
+                    showTab(tabId, activeTab);
+                } else if (tabButtons.length > 0) {
+                    const firstTab = tabButtons[0];
+                    firstTab.classList.add("active");
+                    const tabId = firstTab.getAttribute("data-tab") || "activeAccountTab";
+                    showTab(tabId, firstTab);
+                }
+            }
+
+            function tabClickHandler(event) {
+                const tabId = this.getAttribute("data-tab") ||
+                    (this.textContent.includes("Active") ? "activeAccountTab" : "bannedAccountTab");
+                showTab(tabId, this);
+            }
+
+            function checkBox(accountStatus) {
+                if(accountStatus === 'Active') {
+                    const bulkBan = document.getElementById('bulkBan');
+                    let selectedItems = document.querySelectorAll('input[type="checkbox"][data-status="Active"]:checked');
+                    count = selectedItems.length;
+                    if (bulkBan) bulkBan.textContent = `Bulk Ban (${count})`;
+                } else if(accountStatus === 'Banned') {
+                    const bulkUnban = document.getElementById('bulkUnban');
+                    let selectedItems = document.querySelectorAll('input[type="checkbox"][data-status="Banned"]:checked');
+                    count = selectedItems.length;
+                    if (bulkUnban) bulkUnban.textContent = `Bulk Unban (${count})`;
+                }
+            }
+
+            function attachCheckboxEvents() {
+                document.querySelectorAll('input[type="checkbox"]').forEach(function(checkbox) {
+                    checkbox.removeEventListener("change", checkboxChangeHandler);
+                    checkbox.addEventListener("change", checkboxChangeHandler);
+                });
+
+                attachActionButtonEvents();
+            }
+
+            function checkboxChangeHandler(event) {
+                let selectedStatus = event.target.getAttribute("data-status");
+                checkBox(selectedStatus);
+
+                if (event.target.checked) {
+                    if (selectedStatus === "Active") {
+                        document.querySelectorAll('input[type="checkbox"][data-status="Banned"]').forEach(function(tickBoxDisable) {
+                            tickBoxDisable.disabled = true;
+                        });
+                    } else if (selectedStatus === "Banned") {
+                        document.querySelectorAll('input[type="checkbox"][data-status="Active"]').forEach(function(tickBoxDisable) {
+                            tickBoxDisable.disabled = true;
+                        });
+                    }
+                } else {
+                    if (document.querySelectorAll('input[type="checkbox"]:checked').length === 0) {
+                        document.querySelectorAll('input[type="checkbox"]').forEach(function(tickBoxEnable) {
+                            tickBoxEnable.disabled = false;
+                        });
+                    }
+                }
+            }
+
+            function attachActionButtonEvents() {
+                document.querySelectorAll('.ban-btn').forEach(button => {
+                    button.removeEventListener('click', banBtnClickHandler);
+                    button.addEventListener('click', banBtnClickHandler);
+                });
+
+                document.querySelectorAll('.unban-btn').forEach(button => {
+                    button.removeEventListener('click', unbanBtnClickHandler);
+                    button.addEventListener('click', unbanBtnClickHandler);
+                });
+
+                document.querySelectorAll('.view-btn').forEach(button => {
+                    button.removeEventListener('click', viewBtnClickHandler);
+                    button.addEventListener('click', viewBtnClickHandler);
+                });
+
+                document.querySelectorAll('.update-btn').forEach(button => {
+                    button.removeEventListener('click', updateBtnClickHandler);
+                    button.addEventListener('click', updateBtnClickHandler);
+                });
+            }
+
+            function banBtnClickHandler(event) {
+                event.preventDefault();
+                actionCurrent = "ban";
+                selectedUserId = this.getAttribute("data-id");
+                console.log("Ban user ID:", selectedUserId);
+                document.getElementById("title-modal").innerText = "Xác nhận khoá người dùng";
+                openConfirmModal(this);
+            }
+
+            function unbanBtnClickHandler(event) {
+                event.preventDefault();
+                actionCurrent = "unban";
+                selectedUserId = this.getAttribute("data-id");
+                document.getElementById("title-modal").innerText = "Xác nhận mở khóa người dùng";
+                openConfirmModal(this);
+            }
+
+            function viewBtnClickHandler(event) {
+                event.preventDefault();
+                const row = this.closest('tr');
+                const checkbox = row.querySelector('input[type="checkbox"]');
+                const userId = checkbox.getAttribute("data-id");
+                console.log("View user ID:", userId);
+                $('#userDetailsModal').modal('show');
+                userDetailsHandler.requestUserDetails(userId);
+            }
+
+            function updateBtnClickHandler(event) {
+                event.preventDefault();
+                actionCurrent = "update";
+                selectedUserId = this.getAttribute("data-id");
+                openUpdateModal(this);
+            }
+
+            function showTab(tabId, element) {
+                document.getElementById("activeAccountTab").parentElement.style.display = "none";
+                document.getElementById("bannedAccountTab").parentElement.style.display = "none";
+
+                document.getElementById(tabId).parentElement.style.display = "block";
+
+                document.querySelectorAll(".tab-button").forEach(btn => btn.classList.remove("active"));
+                element.classList.add("active");
+            }
+            function displayAccountPage(accountType, pageNumber) {
+                const tableId = accountType === 'active' ? 'activeAccountTab' : 'bannedAccountTab';
+                const accountsData = accountType === 'active' ? activeAccountsData : bannedAccountsData;
+
+                const tableElement = document.getElementById(tableId);
+                if (!tableElement) {
+                    console.error(`Table not found: ${tableId}`);
+                    return;
+                }
+
+                if (accountType === 'active') {
+                    currentActiveAccountPage = pageNumber;
+                } else {
+                    currentBannedAccountPage = pageNumber;
+                }
+
+                const startIndex = (pageNumber - 1) * itemsPerPage;
+                const endIndex = Math.min(startIndex + itemsPerPage, accountsData.length);
+
+                const tbody = tableElement.querySelector('tbody');
+                if (!tbody) {
+                    console.error(`Table body not found in ${tableId}`);
+                    return;
+                }
+
+                tbody.innerHTML = '';
+
+                for (let i = startIndex; i < endIndex; i++) {
+                    const account = accountsData[i];
+                    if (!account) continue;
+
+                    let unbanButton = account.status === "Banned" ? `
+                <button class="btn btn-gradient-light unban-btn" data-id="${account.id}">
+                    <i class="fa fa-unlock"></i>
+                </button>
+            ` : '';
+
+                    let banButton = account.status === "Active" ? `
+                <button class="btn btn-danger ban-btn" title="Ban" data-id="${account.id}">
+                    <i class="fa-solid fa-ban"></i>
+                </button>
+            ` : '';
+
+                    let row = document.createElement('tr');
+                    row.innerHTML = `
+                <td>
+                    <input type="checkbox"
+                        data-id="${account.id}"
+                        data-username="${account.username}"
+                        data-password="${account.password || ''}"
+                        data-role="${account.role ? account.role.role_id : 'N/A'}"
+                        data-status="${account.status}"
+                        data-email="${account.email || ''}"
+                        class="checkbox"/>
+                </td>
+                <td>${account.username}</td>
+                <td>${account.email || ''}</td>
+                <td>${account.role ? account.role.role_id : 'N/A'}</td>
+                <td>${account.status}</td>
+                <td>
+                    <a class="btn btn-gradient-info view-btn" title="View">
+                        <i class="fa-solid fa-eye"></i>
+                    </a>
+
+                    ${unbanButton}
+                    ${banButton}
+                </td>
+            `;
+
+                    tbody.appendChild(row);
+                }
+
+                updatePageInfo(accountType);
+                attachCheckboxEvents();
+            }
+
+            function renderPaginationControls(accountType, totalItems) {
+                const tableId = accountType === 'active' ? 'activeAccountTab' : 'bannedAccountTab';
+                const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+                const tableElement = document.getElementById(tableId);
+                if (!tableElement) {
+                    console.error(`Table not found: ${tableId}`);
+                    return;
+                }
+
+                const tableParent = tableElement.closest('.table-responsive');
+                if (!tableParent) {
+                    console.error('Table parent not found');
+                    return;
+                }
+
+                const existingPagination = tableParent.querySelector('.pagination-controls');
+                if (existingPagination) {
+                    existingPagination.remove();
+                }
+
+                const paginationControls = document.createElement('div');
+                paginationControls.className = 'pagination-controls mt-3';
+                paginationControls.setAttribute('data-type', accountType);
+
+                paginationControls.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <span class="mr-3">Rows per page:</span>
+                    <select class="form-control form-control-sm items-per-page" style="width: auto">
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                <div>
+                    <span class="page-info mr-3"></span>
+                    <button class="btn btn-sm btn-outline-primary prev-page" ${totalPages <= 1 ? 'disabled' : ''}>
+                        <i class="fa fa-chevron-left"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary next-page" ${totalPages <= 1 ? 'disabled' : ''}>
+                        <i class="fa fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+
+                tableParent.appendChild(paginationControls);
+                attachPaginationEvents(accountType);
+            }
+
+            function updatePageInfo(accountType) {
+                const accountsData = accountType === 'active' ? activeAccountsData : bannedAccountsData;
+                const currentPage = accountType === 'active' ? currentActiveAccountPage : currentBannedAccountPage;
+                const totalPages = Math.ceil(accountsData.length / itemsPerPage);
+                const startItem = accountsData.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
+                const endItem = Math.min(startItem + itemsPerPage - 1, accountsData.length);
+
+                const paginationControls = document.querySelector(`.pagination-controls[data-type="${accountType}"]`);
+                if (!paginationControls) {
+                    console.error(`Pagination controls not found for ${accountType}`);
+                    return;
+                }
+
+                const pageInfoElement = paginationControls.querySelector('.page-info');
+                if (pageInfoElement) {
+                    pageInfoElement.textContent = `${startItem}-${endItem} of ${accountsData.length}`;
+                }
+
+                const prevPageBtn = paginationControls.querySelector('.prev-page');
+                if (prevPageBtn) {
+                    prevPageBtn.disabled = currentPage === 1 || accountsData.length === 0;
+                }
+
+                const nextPageBtn = paginationControls.querySelector('.next-page');
+                if (nextPageBtn) {
+                    nextPageBtn.disabled = currentPage === totalPages || totalPages === 0;
+                }
+
+                const itemsPerPageSelect = paginationControls.querySelector('.items-per-page');
+                if (itemsPerPageSelect) {
+                    itemsPerPageSelect.value = itemsPerPage;
+                }
+            }
+
+            function attachPaginationEvents(accountType) {
+                const paginationControls = document.querySelector(`.pagination-controls[data-type="${accountType}"]`);
+
+                if (!paginationControls) return;
+
+                const prevPageBtn = paginationControls.querySelector('.prev-page');
+                if (prevPageBtn) {
+                    prevPageBtn.addEventListener('click', function() {
+                        const currentPage = accountType === 'active' ? currentActiveAccountPage : currentBannedAccountPage;
+                        if (currentPage > 1) {
+                            displayAccountPage(accountType, currentPage - 1);
+                        }
+                    });
+                }
+
+                const nextPageBtn = paginationControls.querySelector('.next-page');
+                if (nextPageBtn) {
+                    nextPageBtn.addEventListener('click', function() {
+                        const currentPage = accountType === 'active' ? currentActiveAccountPage : currentBannedAccountPage;
+                        const accountsData = accountType === 'active' ? activeAccountsData : bannedAccountsData;
+                        const totalPages = Math.ceil(accountsData.length / itemsPerPage);
+
+                        if (currentPage < totalPages) {
+                            displayAccountPage(accountType, currentPage + 1);
+                        }
+                    });
+                }
+
+                const itemsPerPageSelect = paginationControls.querySelector('.items-per-page');
+                if (itemsPerPageSelect) {
+                    itemsPerPageSelect.addEventListener('change', function() {
+                        itemsPerPage = parseInt(this.value);
+
+                        renderPaginationControls('active', activeAccountsData.length);
+                        renderPaginationControls('banned', bannedAccountsData.length);
+
+                        displayAccountPage('active', 1);
+                        displayAccountPage('banned', 1);
+                    });
+                }
+            }
+
+            // const activeTabButton = document.querySelector('.tab-button.active') || document.querySelector('.tab-button');
+            // if (activeTabButton) {
+            //     const defaultTabId = activeTabButton.getAttribute('data-tab') ||
+            //         (activeTabButton.textContent.includes('Active') ? 'activeAccountTab' : 'bannedAccountTab');
+            //     showTab(defaultTabId, activeTabButton);
+            // }
+            function openConfirmModal(button) {
+                const row = button.closest('tr');
+                const checkbox = row.querySelector('input[type="checkbox"]');
+
+                $('#userList').empty();
+                let userInfo = `
+            <div class="user-info p-2 border-bottom">
+                <p><strong>ID:</strong><span id="useridban"> ${checkbox.getAttribute("data-id")}</span></p>
+                <p><strong>Username:</strong><span id="usernameban"> ${checkbox.getAttribute("data-username")}</span></p>
+                <p><strong>Email:</strong><span id="emailban"> ${checkbox.getAttribute("data-email")}</span></p>
+                <p><strong>Role:</strong><span id="roleban"> ${checkbox.getAttribute("data-role")}</span></p>
+                <p><strong>Status:</strong><span id="statusCurrent"> ${checkbox.getAttribute("data-status")}</span></p>
+            </div>
+        `;
+                document.getElementById('previousStatus').value = checkbox.getAttribute("data-status");
+                document.getElementById('userList').innerHTML = userInfo;
+
+                $('#confirmBanModal').modal('show');
+            }
+
+
+
+
+    const userDetailsHandler = initUserDetailsModal();
+
+            function initUserDetailsModal() {
+                let detailsStompClient = null;
+
+                function requestUserDetails(userId) {
+                    setUserDetailsLoading(true);
+
+                    if (detailsStompClient) {
+                        detailsStompClient.disconnect();
+                    }
+
+                    const detailsSocket = new SockJS('/ws');
+                    detailsStompClient = Stomp.over(detailsSocket);
+
+                    detailsStompClient.connect({}, function() {
+                        console.log("✅ Connected to WebSocket for user details");
+
+                        detailsStompClient.subscribe('/topic/userDetails', function(message) {
+                            const userDetails = JSON.parse(message.body);
+                            console.log("📥 Received user details:", userDetails);
+
+                            updateUserDetailsModal(userDetails);
+                            setUserDetailsLoading(false);
+                        });
+
+                        detailsStompClient.send("/app/admin/users/details", {}, userId);
+                    }, function(error) {
+                        console.error("❌ Error connecting to WebSocket:", error);
+                        setUserDetailsError();
+                    });
+                }
+
+                $('#userDetailsModal').on('hidden.bs.modal', function() {
+                    if (detailsStompClient) {
+                        detailsStompClient.disconnect();
+                        detailsStompClient = null;
+                    }
+                });
+
+                return { requestUserDetails };
+            }
+
+
+            function updateUserDetailsModal(userDetails) {
+                if (!userDetails) {
+                    setUserDetailsError();
+                    return;
+                }
+
+                if (userDetails.profile && userDetails.profile.image_id) {
+                    document.getElementById("userAvatar").src = "/images/avatars/" + userDetails.profile.image_id;
+                } else {
+                    document.getElementById("userAvatar").src = "/images/default-avatar.png";
+                }
+
+                document.getElementById("userName").textContent = userDetails.username;
+                document.getElementById("userId").textContent = userDetails.id;
+                document.getElementById("userEmail").textContent = userDetails.email;
+
+                const roleElement = document.getElementById("userRole");
+                roleElement.textContent = userDetails.role ? userDetails.role.role_id : "Unknown";
+                roleElement.className = "badge " + (userDetails.role && userDetails.role.role_id === "Teacher" ? "badge-info" : "badge-primary");
+
+                const statusElement = document.getElementById("userStatus");
+                statusElement.textContent = userDetails.status;
+                statusElement.className = "badge " + (userDetails.status === "Active" ? "badge-success" : "badge-danger");
+
+                if (userDetails.profile) {
+                    document.getElementById("userFullName").textContent = userDetails.profile.name || "Not provided";
+                    document.getElementById("userDescription").textContent = userDetails.profile.description || "No description";
+                } else {
+                    document.getElementById("userFullName").textContent = "Not provided";
+                    document.getElementById("userDescription").textContent = "No description";
+                }
+
+                document.getElementById("enrolledCourses").textContent = userDetails.courses ? userDetails.courses.length : 0;
+                document.getElementById("totalReviews").textContent = userDetails.reviews ? userDetails.reviews.length : 0;
+
+                const formatDate = (dateString) => {
+                    const date = new Date(dateString);
+                    return date.toLocaleString();
+                };
+
+                document.getElementById("userCreatedDate").textContent = formatDate(userDetails.createdDate);
+                document.getElementById("userLastLogin").textContent = formatDate(userDetails.lastLogin);
+            }
+
+            function setUserDetailsLoading(isLoading) {
+                if (isLoading) {
+                    document.getElementById("userAvatar").src = "/images/loading.gif";
+                    document.getElementById("userName").textContent = "Loading...";
+                    document.getElementById("userId").textContent = "Loading...";
+                    document.getElementById("userEmail").textContent = "Loading...";
+                    document.getElementById("userRole").textContent = "Loading...";
+                    document.getElementById("userStatus").textContent = "Loading...";
+                    document.getElementById("userFullName").textContent = "Loading...";
+                    document.getElementById("userDescription").textContent = "Loading...";
+                    document.getElementById("enrolledCourses").textContent = "...";
+                    document.getElementById("totalReviews").textContent = "...";
+                    document.getElementById("userCreatedDate").textContent = "Loading...";
+                    document.getElementById("userLastLogin").textContent = "Loading...";
+                }
+            }
+
+            function setUserDetailsError() {
+                document.getElementById("userAvatar").src = "/images/error.png";
+                document.getElementById("userName").textContent = "Error loading user";
+                document.getElementById("userId").textContent = "Error";
+                document.getElementById("userEmail").textContent = "Error";
+                document.getElementById("userRole").textContent = "Error";
+                document.getElementById("userStatus").textContent = "Error";
+                document.getElementById("userFullName").textContent = "Error";
+                document.getElementById("userDescription").textContent = "Error loading user details";
+                document.getElementById("enrolledCourses").textContent = "0";
+                document.getElementById("totalReviews").textContent = "0";
+                document.getElementById("userCreatedDate").textContent = "Error";
+                document.getElementById("userLastLogin").textContent = "Error";
+            }
+
+            function createAccountHistoryStatus() {
+                let selectedUsers = [];
+
+                document.querySelectorAll(".user-info").forEach(userDiv => {
+                    let id = userDiv.querySelector("#useridban").textContent.trim();
+                    let username = userDiv.querySelector("#usernameban").textContent.trim();
+                    let email = userDiv.querySelector("#emailban").textContent.trim();
+                    let role = userDiv.querySelector("#roleban").textContent.trim();
+                    let status = userDiv.querySelector("#statusCurrent").textContent.trim();
+
+                    selectedUsers.push({
+                        "id": id,
+                        "username": username,
+                        "email": email,
+                        "role": {"role_id": role},
+                        "status": status
+                    });
+                });
+
+                return selectedUsers;
+            }
+
+            function getHistoryStatus(selectedUsers) {
+                let statusCurrent = document.querySelector("#statusCurrent").textContent.trim();
+                let newStatus = statusCurrent === 'Active' ? 'Banned' : 'Active';
+
+                return selectedUsers.map(user => ({
+                    "changeReason": $('#reason').val(),
+                    "newStatus": newStatus,
+                    "previousStatus": statusCurrent,
+                    "changeTime": $('#changeTime').val(),
+                    "account": user,
+                    "imageEvidence": $('#imageEvidence').val()
+                }));
+            }
+
+            function createUser() {
+                let newAccount = {
+                    username: $("#username").val(),
+                    password: $("#password").val(),
+                    email: $("#email").val(),
+                    status: $("#status").val(),
+                    role: {role_id: $("#role").val()}
+                };
+
+                stompClient.send("/app/admin/users/create", {}, JSON.stringify(newAccount));
+            }
+
+            function updateUser() {
+                let updateAccount = {
+                    id: selectedUserId,
+                    username: $("#username").val(),
+                    password: $("#password").val(),
+                    email: $("#email").val(),
+                    status: $("#status").val(),
+                    role: {
+                        role_id: $("#role").val()
+                    }
+                };
+                stompClient.send("/app/admin/users/create", {}, JSON.stringify(updateAccount));
+            }
+
+            function openUpdateModal(button) {
+                const row = button.closest('tr');
+                const checkbox = row.querySelector('input[type="checkbox"]');
+
+                $("#username").val(checkbox.getAttribute("data-username"));
+                $("#password").val(checkbox.getAttribute("data-password") || "");
+                $("#email").val(checkbox.getAttribute("data-email"));
+                $("#status").val(checkbox.getAttribute("data-status"));
+                $("#role").val(checkbox.getAttribute("data-role"));
+
+                document.getElementById('modal-title').innerText = "Update User";
+                document.getElementById('createOrUpdateModal').style.display = "flex";
+            }
+
+            document.getElementById("search-input").addEventListener("input", function() {
+                let searchValue = this.value.trim();
+                console.log("Sending search query: ", searchValue);
+                stompClient.send("/app/admin/users/filter", {}, searchValue);
+            });
+
+            document.querySelectorAll(".dropdown-item").forEach(link => {
+                link.addEventListener("click", function(event) {
+                    event.preventDefault();
+
+                    document.querySelectorAll(".dropdown-item").forEach(item =>
+                        item.classList.remove("active-link")
+                    );
+
+                    this.classList.add("active-link");
+
+                    let sortBy = this.textContent.trim();
+                    stompClient.send("/app/admin/users/filter", {}, sortBy);
+                });
+            });
+
+            // Confirm modal setup
+            const confirmText = document.getElementById("confirmText");
+            const confirmBtn = document.getElementById("confirmBanBtn");
+
+            if (confirmText && confirmBtn) {
+                confirmText.addEventListener("input", function() {
+                    confirmBtn.disabled = this.value.trim().toUpperCase() !== "CONFIRM";
+                });
+
+                $('#confirmBanModal').on('shown.bs.modal', function() {
+                    confirmText.focus();
+                });
+
+                $('#confirmBanModal').on('hidden.bs.modal', function() {
+                    confirmText.value = "";
+                    confirmBtn.disabled = true;
+                });
+            }
+
+            // Bulk actions
+            document.getElementById("bulkBan")?.addEventListener("click", function() {
+                let selectedItems = document.querySelectorAll('input[type="checkbox"][data-status="Active"]:checked');
+                if (selectedItems.length === 0) return;
+
+                $('#userList').empty();
+
+                selectedItems.forEach(function(checkbox) {
+                    let id = checkbox.getAttribute("data-id");
+                    let username = checkbox.getAttribute("data-username");
+                    let email = checkbox.getAttribute("data-email");
+                    let role = checkbox.getAttribute("data-role");
+                    let status = checkbox.getAttribute("data-status");
+
+                    let userInfo = `
+                <div class="user-info p-2 border-bottom">
+                    <p><strong>ID:</strong><span id="useridban"> ${id}</span></p>
+                    <p><strong>Username:</strong><span id="usernameban"> ${username}</span></p>
+                    <p><strong>Email:</strong><span id="emailban"> ${email}</span></p>
+                    <p><strong>Role:</strong><span id="roleban"> ${role}</span></p>
+                    <p><strong>Status:</strong><span id="statusCurrent"> ${status}</span></p>
+                </div>
+            `;
+                    document.getElementById('previousStatus').value = status;
+                    document.getElementById('userList').innerHTML += userInfo;
+                });
+
+                $('#confirmBanModal').modal('show');
+                document.getElementById("title-modal").innerText = "Xác nhận khoá người dùng";
+                actionCurrent = "ban";
+            });
+
+            document.getElementById("bulkUnban")?.addEventListener("click", function() {
+                let selectedItems = document.querySelectorAll('input[type="checkbox"][data-status="Banned"]:checked');
+                if (selectedItems.length === 0) return;
+
+                $('#userList').empty();
+
+                selectedItems.forEach(function(checkbox) {
+                    let id = checkbox.getAttribute("data-id");
+                    let username = checkbox.getAttribute("data-username");
+                    let email = checkbox.getAttribute("data-email");
+                    let role = checkbox.getAttribute("data-role");
+                    let status = checkbox.getAttribute("data-status");
+
+                    let userInfo = `
+                <div class="user-info p-2 border-bottom">
+                    <p><strong>ID:</strong><span id="useridban"> ${id}</span></p>
+                    <p><strong>Username:</strong><span id="usernameban"> ${username}</span></p>
+                    <p><strong>Email:</strong><span id="emailban"> ${email}</span></p>
+                    <p><strong>Role:</strong><span id="roleban"> ${role}</span></p>
+                    <p><strong>Status:</strong><span id="statusCurrent"> ${status}</span></p>
+                </div>
+            `;
+                    document.getElementById('previousStatus').value = status;
+                    document.getElementById('userList').innerHTML += userInfo;
+                });
+
+                $('#confirmBanModal').modal('show');
+                document.getElementById("title-modal").innerText = "Xác nhận mở khóa người dùng";
+                actionCurrent = "unban";
+            });
+
+            document.getElementById("createUser")?.addEventListener('click', function(event) {
+                actionCurrent = "create";
+                event.preventDefault();
+
+                $("#username").val("");
+                $("#password").val("");
+                $("#email").val("");
+                $("#status").val("Active");
+                $("#role").val("Learner");
+
+                document.getElementById('modal-title').innerText = "Create New User";
+                document.getElementById('createOrUpdateModal').style.display = "flex";
+            });
+
+            document.querySelectorAll('[name="confirmYes"]').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    switch(actionCurrent) {
+                        case 'create':
+                            createUser();
+                            document.getElementById('createOrUpdateModal').style.display = "none";
+                            break;
+
+                        case 'update':
+                            updateUser();
+                            document.getElementById('createOrUpdateModal').style.display = "none";
+                            break;
+
+                        case 'ban':
+                            var selectedUsers = createAccountHistoryStatus();
+                            var newHistory = getHistoryStatus(selectedUsers);
+                            $('#confirmBanModal').modal('hide');
+
+                            if (selectedUsers.length > 0) {
+                                stompClient.send("/app/admin/users/delete", {}, JSON.stringify(selectedUsers));
+
+                                setTimeout(() => {
+                                    stompClient.send("/app/admin/users/recordHistory", {}, JSON.stringify(newHistory));
+                                }, 500);
+                            }
+                            break;
+
+                        case 'unban':
+                            var selectedUsers = createAccountHistoryStatus();
+                            var newHistory = getHistoryStatus(selectedUsers);
+                            $('#confirmBanModal').modal('hide');
+
+                            if (selectedUsers.length > 0) {
+                                stompClient.send("/app/admin/users/unban", {}, JSON.stringify(selectedUsers));
+
+                                setTimeout(() => {
+                                    stompClient.send("/app/admin/users/recordHistory", {}, JSON.stringify(newHistory));
+                                }, 500);
+                            }
+                            break;
+                    }
+                    actionCurrent = null;
+                });
+            });
+
+            // Cancel buttons
+            document.querySelectorAll('[name="confirmNo"]').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    $('#confirmBanModal').modal('hide');
+                    actionCurrent = null;
+                });
+            });
+
+
+
+            document.querySelectorAll('[name="confirmNo"]').forEach(function(button) {
+                button.addEventListener('click', function() {
+
+                    $('#confirmBanModal').modal('hide');
+                    actionCurrent = null;
+                    $('#userDetailsModal').modal('hide');
+                });
+            });
+
+
+            const avatarFile = $("#avatarFile");
+            avatarFile.change(function(e) {
+                const imgURL = URL.createObjectURL(e.target.files[0]);
+                $("#avatarPreview").attr("src", imgURL);
+                $("#avatarPreview").css({"display": "block"});
+            });
+
+            // showTab('activeAccountTab', document.querySelector('.tab-button.active'));
+        });
+    </script>
+
+</head>
+<body>
+<div class="container-scroller">
+
+    <div th:replace="~{/view/admin/partials/_navbar :: _navbar}"></div>
+    <!-- partial -->
+    <div class="container-scroller">
+
+        <div th:replace="~{/view/admin/partials/_navbar :: _navbar}"></div>
+        <!-- partial -->
+        <div class="container-fluid page-body-wrapper">
+            <!-- partial:partials/_sidebar.html -->
+            <div th:replace="~{/view/admin/partials/_sidebar :: _sidebar}"></div>
+            <div class="main-panel">
+                <div class="content-wrapper">
+                    <div class="container-fluid px-4">
+
+                        <ol class="breadcrumb mb-4">
+                            <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+                            <li class="breadcrumb-item active">Users</li>
+                        </ol>
+                        <div class="filter-container">
+                            <label>
+                                <input type="text" id="search-input" class="search-input" placeholder="Search Name">
+
+                            </label>
+
+                            <div class="dropdown">
+
+                                <button style="background-color: #EAE4F3; border-radius: 10px;color:#6216FF" type="button" data-bs-toggle="dropdown">
+                                    <i class="fa-solid fa-sort"></i> <span style="margin-right: 2px"> Sort</span>
+                                </button>
+
+                                <ul class="dropdown-menu dropdown-menu-dark">
+
+                                    <li class="dropdown">
+                                        <a class="dropdown-item dropdown-toggle">By Name</a>
+
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#">Sort A-Z</a></li>
+                                            <li><a class="dropdown-item" href="#">Sort Z-A</a></li>
+                                        </ul>
+                                    </li>
+                                    <li class="dropdown" name="filter-sort">
+                                        <a class="dropdown-item">Sort Course Point</a>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item">Ascending</a></li>
+                                            <li><a class="dropdown-item">Descending</a></li>
+                                        </ul>
+                                    </li>
+
+                                    <li class="dropdown">
+                                        <a class="dropdown-item">Sort Earn Money</a>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#">Ascending</a></li>
+                                            <li><a class="dropdown-item" href="#">Descending</a></li>
+                                        </ul>
+
+                                    </li>
+                                </ul>
+
+
+                                <button style="background-color: #EAE4F3; color:#6216FF;border-radius: 10px" type="button" data-bs-toggle="dropdown">
+                                    <i class="fa-solid fa-filter"></i> <span style="margin-right: 2px"> Filter</span>
+                                </button>
+
+                                <ul class="dropdown-menu dropdown-menu-dark">
+                                    <li class="dropdown">
+                                        <a class="dropdown-item">Role</a>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item">Learner</a></li>
+                                            <li><a class="dropdown-item">Teacher</a></li>
+                                        </ul>
+                                    </li>
+                                    <li class="dropdown">
+                                        <a class="dropdown-item">Status</a>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#">ACTIVE</a></li>
+                                            <li><a class="dropdown-item" href="#">BANNED</a></li>
+                                        </ul>
+                                    </li>
+                                    <li><a class="dropdown-item">Something else here</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item">Separated link</a></li>
+                                </ul>
+                            </div>
+
+
+                        </div>
+
+                    </div>
+                    <div class="tab-container">
+                        <button class="tab-button active" >Active Accounts</button>
+                        <button class="tab-button">Banned Accounts</button>
+                    </div>
+
+
+                    <button class="btn-gradient-danger" id="bulkBan">
+                        <i class="fas fa-user-slash"></i> <span th:text="#{action.button.bulkban}"></span>
+                    </button>
+
+                    <button class="btn-gradient-success" id="bulkUnban">
+                        <i class="fas fa-user-check"></i> <span th:text="#{action.button.bulkunban}"></span>
+                    </button>
+
+
+                    <div class="card">
+                        <div class="card-body" id="accountList">
+                            <h4 class="card-title">List Account</h4>
+
+                            <div class="table-responsive">
+                                <table class="table" id="activeAccountTab">
+                                    <thead>
+                                    <tr class="table-info">
+                                        <th>Choose</th>
+
+                                        <th>Username</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+
+                            <div class="table-responsive" style="display: none;">
+                                <table class="table" id="bannedAccountTab">
+                                    <thead>
+                                    <tr class="table-info">
+                                        <th>Choose</th>
+                                        <th>Username</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+
+                                    </tbody>
+                                </table>
+                            </div>
+
+                        </div>
+                    </div>
+
+
+                    <div id="userDetailsModal" class="modal fade" tabindex="-1" role="dialog">
+                        <div class="modal-dialog modal-lg" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header bg-gradient-primary text-white">
+                                    <h5 class="modal-title">User Details</h5>
+                                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-md-4 text-center">
+                                            <div class="user-avatar mb-3">
+                                                <img id="userAvatar" src="/images/default-avatar.png" alt="User Avatar"
+                                                     class="img-fluid rounded-circle shadow"
+                                                     style="max-width: 150px; max-height: 150px; border: 5px solid #f8f9fa;">
+                                            </div>
+                                            <h4 id="userName" class="font-weight-bold mb-2">Username</h4>
+                                            <div class="mb-3">
+                                                <span id="userRole" class="badge badge-primary mr-2">Role</span>
+                                                <span id="userStatus" class="badge badge-success">Status</span>
+                                            </div>
+                                            <div class="user-actions mt-3">
+                                                <button class="btn btn-sm btn-outline-primary mr-2">
+                                                    <i class="fas fa-envelope"></i> Message
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info">
+                                                    <i class="fas fa-user-edit"></i> Edit
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <div class="card shadow-sm">
+                                                <div class="card-header bg-light">
+                                                    <h5 class="card-title mb-0">
+                                                        <i class="fas fa-info-circle mr-2"></i>Account Information
+                                                    </h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-borderless">
+                                                            <tbody>
+                                                            <tr>
+                                                                <th><i class="fas fa-fingerprint text-muted mr-2"></i>ID:</th>
+                                                                <td id="userId" class="text-muted"></td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th><i class="fas fa-envelope text-muted mr-2"></i>Email:</th>
+                                                                <td id="userEmail"></td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th><i class="fas fa-calendar-plus text-muted mr-2"></i>Created:</th>
+                                                                <td id="userCreatedDate" class="text-muted"></td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th><i class="fas fa-sign-in-alt text-muted mr-2"></i>Last Login:</th>
+                                                                <td id="userLastLogin" class="text-muted"></td>
+                                                            </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="card shadow-sm mt-3">
+                                                <div class="card-header bg-light">
+                                                    <h5 class="card-title mb-0">
+                                                        <i class="fas fa-user-circle mr-2"></i>Profile Information
+                                                    </h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-borderless">
+                                                            <tbody>
+                                                            <tr>
+                                                                <th><i class="fas fa-user text-muted mr-2"></i>Full Name:</th>
+                                                                <td id="userFullName"></td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th><i class="fas fa-align-left text-muted mr-2"></i>Description:</th>
+                                                                <td id="userDescription" class="text-muted"></td>
+                                                            </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="card shadow-sm mt-3">
+                                                <div class="card-header bg-light">
+                                                    <h5 class="card-title mb-0">
+                                                        <i class="fas fa-chart-line mr-2"></i>Activity Statistics
+                                                    </h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div id="userActivity">
+                                                        <div class="row text-center">
+                                                            <div class="col-6">
+                                                                <div class="p-3 border rounded bg-light">
+                                                                    <h3 id="enrolledCourses" class="mb-1 text-primary">0</h3>
+                                                                    <p class="mb-0 text-muted">
+                                                                        <i class="fas fa-book mr-1"></i>Enrolled Courses
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-6">
+                                                                <div class="p-3 border rounded bg-light">
+                                                                    <h3 id="totalReviews" class="mb-1 text-primary">0</h3>
+                                                                    <p class="mb-0 text-muted">
+                                                                        <i class="fas fa-comment mr-1"></i>Reviews
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" name="confirmNo" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="confirmBanModal" class="modal fade" tabindex="-1" role="dialog">
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 id="title-modal" class="modal-title">Xác nhận khoá người dùng</h5>
+                                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                </div>
+                                <div class="modal-body">
+                                    <div id="userList" style="max-height: 300px; overflow-y: auto;">
+
+                                    </div>
+                                    <hr>
+                                    <div>
+                                        <input type="text" id="reason" placeholder="Reason">
+                                        <input type="file" id="imageEvidence">
+                                        <input type="hidden" id="previousStatus">
+                                        <input type="hidden" id="changeTime" th:value="${#temporals.createNow()}">
+                                    </div>
+                                    <p class="text-danger" th:text="#{confirm.text}"></p>
+                                    <input type="text" id="confirmText" class="form-control" placeholder='Nhập "CONFIRM" để xác nhận' required>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" name="confirmNo" class="btn btn-secondary" data-dismiss="modal" th:text="#{confirm.no}"></button>
+                                    <button type="button" name="confirmYes" class="btn btn-danger" id="confirmBanBtn" th:text="#{confirm.yes}" disabled></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div th:replace="~{/view/admin/partials/chatopenai :: chatopenai}"></div>
+        </div>
+        <!-- main-panel ends -->
+        <div th:replace="~{/view/admin/partials/_footer :: _footer}"></div>
+
+
+    </div>
+
+</div>
+
+<script th:src="@{/js/vendor.bundle.base.js}"></script>
+<script th:src="@{/js/vendor.bundle.addons.js}"></script>
+
+<script th:src="@{/js/off-canvas.js}"></script>
+<script th:src="@{/js/misc.js}"></script>
+<script th:src="@{/js/dashboard.js}"></script>
+</body>
+</html>

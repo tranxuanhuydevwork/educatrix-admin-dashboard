@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+ <h2>Xác nhật email của bạn</h2>
+<div th:if="${param.resent}" style="color: green; margin-bottom: 15px">
+    Một mã xác nhận mới đã gửi về email của bạn
+</div>
+<form th:action="@{/auth/verify}" method="post" class="auth-form">
+    <p>Hệ thống educatrix đã gửi một mã xác nhận</p>
+    <input type="hidden" name="email" th:value="${email}">
+    Mã xác nhận:<input type="text" id="code" name="code" required placeholder="Nhập mã xác nhận">
+    <span style="--red:var()" th:if="${error}" th:text="${error}" ></span>
+    <button type="submit">Xac nhan</button>
+    <p>Khong nhan dc ma?</p>
+    <form th:action="@{/auth/resend}" method="post" class="resendForm">
+        <input type="hidden" name="email" th:value="${email}">
+        <button type="submit" style="background: none;border: none;color: #0a53be">Resend</button>
+    </form>
+</form>
+</body>
+</html>

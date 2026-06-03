@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+
+
+<head>
+
+    <style>
+
+
+        #courseDetailModal {
+
+            position: fixed;
+
+            width: 100%;
+
+            height: 100%;
+
+            background-color: rgba(0, 0, 0, 0.5);
+
+            display: none;
+
+            justify-content: center;
+
+            align-items: center;
+
+            z-index: 1000;
+
+            top: 0;
+
+            left: 0;
+
+        }
+
+
+
+        .course-modal-content {
+
+            background-color: var(--card-bg);
+
+            border-radius: 15px;
+
+            width: 80%;
+
+            max-width: 1200px;
+
+            max-height: 90vh;
+
+            overflow-y: auto;
+
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+
+            position: relative;
+
+            animation: modalFadeIn 0.3s ease-out;
+
+        }
+
+
+
+        .course-modal-header {
+
+            padding: 1.5rem;
+
+            border-bottom: 1px solid var(--border-color);
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+        }
+
+
+
+        .course-modal-body {
+
+            padding: 0;
+
+        }
+
+
+
+        .course-sidebar {
+
+            background-color: var(--bg-color);
+
+            border-right: 1px solid var(--border-color);
+
+            height: 100%;
+
+            padding: 1rem 0;
+
+            overflow-y: auto;
+
+        }
+
+
+
+        .lesson-list {
+
+            list-style: none;
+
+            padding: 0;
+
+            margin: 0;
+
+        }
+
+
+
+        .lesson-item {
+
+            padding: 0.75rem 1rem;
+
+            border-bottom: 1px solid var(--border-color);
+
+            cursor: pointer;
+
+            transition: all 0.2s;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 0.5rem;
+
+        }
+
+
+
+        .lesson-item:hover {
+
+            background-color: var(--primary-light);
+
+        }
+
+
+
+        .lesson-item.active {
+
+            background-color: var(--primary-light);
+
+            color: var(--primary-color);
+
+            font-weight: 600;
+
+        }
+
+
+
+        .lesson-icon {
+
+            width: 24px;
+
+            height: 24px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+        }
+
+
+
+        .lesson-content {
+
+            padding: 2rem;
+
+        }
+
+
+
+        .video-container {
+
+            position: relative;
+
+            padding-bottom: 56.25%;
+
+            height: 0;
+
+            overflow: hidden;
+
+            max-width: 100%;
+
+            margin-bottom: 2rem;
+
+        }
+
+
+
+        .video-container iframe {
+
+            position: absolute;
+
+            top: 0;
+
+            left: 0;
+
+            width: 100%;
+
+            height: 100%;
+
+        }
+
+
+
+        /* Discussion Section */
+
+        .discussion-section {
+
+            margin-top: 2rem;
+
+            padding-top: 1.5rem;
+
+            border-top: 1px solid var(--border-color);
+
+        }
+
+
+
+        .comment {
+
+            padding: 1rem;
+
+            border-radius: 8px;
+
+            background-color: var(--primary-light);
+
+            margin-bottom: 1rem;
+
+        }
+
+
+
+        .comment-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            margin-bottom: 0.5rem;
+
+        }
+
+
+
+        .comment-user {
+
+            font-weight: 600;
+
+            color: var(--primary-color);
+
+        }
+
+
+
+        .comment-date {
+
+            font-size: 0.85rem;
+
+            color: #6c757d;
+
+        }
+
+
+
+        .new-comment {
+
+            margin-top: 1.5rem;
+
+        }
+
+
+
+        .new-comment textarea {
+
+            width: 100%;
+
+            padding: 0.75rem;
+
+            border: 1px solid var(--border-color);
+
+            border-radius: 8px;
+
+            margin-bottom: 1rem;
+
+            background-color: var(--card-bg);
+
+            color: var(--text-color);
+
+        }
+
+
+
+        /* Course Info Panel */
+
+        .course-info-panel {
+
+            padding: 1.5rem;
+
+            background-color: var(--primary-light);
+
+            border-radius: 10px;
+
+            margin-bottom: 1.5rem;
+
+        }
+
+
+
+        .info-item {
+
+            display: flex;
+
+            gap: 0.5rem;
+
+            margin-bottom: 0.75rem;
+
+        }
+
+
+
+        .info-icon {
+
+            color: var(--primary-color);
+
+        }
+
+
+
+        /* Course Progress */
+
+        .progress-container {
+
+            margin-bottom: 1.5rem;
+
+        }
+
+
+
+        .progress-bar {
+
+            height: 8px;
+
+            background-color: var(--border-color);
+
+            border-radius: 4px;
+
+            overflow: hidden;
+
+        }
+
+
+
+        .progress-fill {
+
+            height: 100%;
+
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+
+            border-radius: 4px;
+
+            transition: width 0.3s ease;
+
+        }
+
+
+
+        .tabs-container {
+
+            display: flex;
+
+            border-bottom: 1px solid var(--border-color);
+
+        }
+
+
+
+        .tab {
+
+            padding: 1rem 1.5rem;
+
+            cursor: pointer;
+
+            font-weight: 500;
+
+            transition: all 0.2s;
+
+        }
+
+
+
+        .tab:hover {
+
+            color: var(--primary-color);
+
+        }
+
+
+
+        .tab.active {
+
+            color: var(--primary-color);
+
+            border-bottom: 2px solid var(--primary-color);
+
+        }
+
+
+
+        .tab-pane {
+
+            display: none;
+
+            padding: 1.5rem;
+
+        }
+
+
+
+        .tab-pane.active {
+
+            display: block;
+
+            animation: fadeIn 0.3s ease;
+
+        }
+
+
+
+        @keyframes fadeIn {
+
+            from { opacity: 0; }
+
+            to { opacity: 1; }
+
+        }
+
+
+
+        /* Files and Attachments */
+
+        .file-item {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 0.75rem;
+
+            padding: 0.75rem;
+
+            border: 1px solid var(--border-color);
+
+            border-radius: 8px;
+
+            margin-bottom: 0.75rem;
+
+            transition: all 0.2s;
+
+        }
+
+
+
+        .file-item:hover {
+
+            background-color: var(--primary-light);
+
+        }
+
+
+
+        .file-icon {
+
+            color: var(--primary-color);
+
+            font-size: 1.25rem;
+
+        }
+
+
+
+        .file-info {
+
+            flex: 1;
+
+        }
+
+
+
+        .file-name {
+
+            font-weight: 500;
+
+            margin-bottom: 0.25rem;
+
+        }
+
+
+
+        .file-size {
+
+            font-size: 0.85rem;
+
+            color: #6c757d;
+
+        }
+
+
+
+        .file-download {
+
+            color: var(--primary-color);
+
+            cursor: pointer;
+
+        }
+
+    </style>
+    <title></title>
+<script>
+    function updateCourseList(courseList) {
+        $('#course-list').empty();
+        $('#course-banned-list').empty();
+
+        courseList.forEach(function (courseElement) {
+            let banButton = courseElement.status === 'Active' ?
+                `<button class="btn btn-danger" title="Ban" data-id="${courseElement.id}">
+                <i class="fa-solid fa-ban"></i>
+            </button>` : '';
+            let unbanButton = courseElement.status === 'Banned' ?
+                `<button class="btn btn-gradient-light" data-id="${courseElement.id}">
+                <i class="fa fa-unlock"></i>
+            </button>` : '';
+
+            let starsHtml = '';
+            let fullStars = Math.floor(courseElement.rateting);
+            for (let i = 0; i < fullStars; i++) {
+                starsHtml += '<i class="fa-solid fa-star star"></i>';
+            }
+
+            if (courseElement.rateting % 1 !== 0) {
+                starsHtml += '<i class="fa-solid fa-star-half-stroke star"></i>';
+            }
+
+            let row = `
+        <tr>
+            <td>
+                <img src="${courseElement.image}" alt="Course Image" class="img-fluid" width="50">
+                ${courseElement.courseName} <br> <small class="text-muted">${courseElement.level}</small>
+            </td>
+            <td>${starsHtml}</td>
+            <td>${courseElement.totalEnroll}</td>
+            <td>${courseElement.formattedPrice}</td>
+            <td>${courseElement.formattedCreateOn}</td>
+            <td>
+                <button class="btn btn-primary" onclick="openCourseModal(${courseElement.id})"><i class="fa-solid fa-magnifying-glass"></i></button>
+                ${banButton}
+                ${unbanButton}
+            </td>
+        </tr>
+        `;
+
+            if(courseElement.status === 'Active'){
+                $('#course-list').append(row);
+            } else if(courseElement.status === 'Banned'){
+                $('#course-banned-list').append(row);
+            }
+        });
+    }
+
+    // WebSocket connection for course modal
+    var courseSocket = new SockJS('/ws');
+    var courseStompClient = Stomp.over(courseSocket);
+
+    courseStompClient.connect({}, function() {
+        console.log("Connected to WebSocket for course modal");
+
+        // Subscribe to course details topic
+        courseStompClient.subscribe('/topic/course-details', function(message) {
+            var courseData = JSON.parse(message.body);
+            populateCourseModal(courseData);
+        });
+
+        // Subscribe to other topics
+        courseStompClient.subscribe('/topic/course-lessons', function(message) {
+            var lessons = JSON.parse(message.body);
+            renderLessons(lessons);
+        });
+
+        courseStompClient.subscribe('/topic/lesson-content', function(message) {
+            var lessonData = JSON.parse(message.body);
+            renderLessonContent(lessonData);
+        });
+
+        courseStompClient.subscribe('/topic/course-reviews', function(message) {
+            var reviews = JSON.parse(message.body);
+            renderReviews(reviews);
+        });
+    });
+
+    // Function to open course modal and request course data
+    function openCourseModal(courseId) {
+        // Show the modal
+        document.getElementById('courseDetailModal').style.display = 'block';
+
+        // Request course details from server
+        courseStompClient.send("/app/course/details", {}, JSON.stringify({courseId: courseId}));
+
+        // Load lessons and reviews
+        loadLessons(courseId);
+        loadReviews(courseId);
+    }
+
+    // Function to populate modal with course data
+    function populateCourseModal(course) {
+        // Main course information
+        document.getElementById('modalCourseTitle').innerText = course.courseName;
+        document.getElementById('courseTeacher').innerText = "Teacher: " + course.teacher.username;
+        document.getElementById('courseCreateDate').innerText = "Created on: " + formatDate(course.createdOn);
+        document.getElementById('courseEnrollment').innerText = "Enrolled students: " + course.totalEnroll;
+        document.getElementById('courseLevel').innerText = "Level: " + course.level;
+        document.getElementById('courseDescription').innerHTML = `
+        <h4>Course Description</h4>
+        <p>${course.description}</p>
+    `;
+
+        // Display course image
+        document.getElementById('courseImage').src = course.image || "https://via.placeholder.com/300x200?text=Web+Development";
+
+        // Price and reviews
+        document.getElementById('coursePrice').innerText = course.formattedPrice;
+        document.getElementById('courseRating').innerText = course.rateting + "/5";
+        document.getElementById('courseReviewCount').innerText = course.totalReviewed || 0;
+
+        // Statistics
+        if (course.courseStatistics) {
+            document.getElementById('enrolledStudents').innerHTML = `
+            <p>Total Students: ${course.totalEnroll}</p>
+            <p>New enrollments this month: ${course.courseStatistics.numEnrolledStudent || 0}</p>
+            <p>Average enrollments per day: ${calculateDailyEnrollments(course)}</p>
+        `;
+
+            document.getElementById('revenueStats').innerHTML = `
+            <p>Total Revenue: ${formatPrice(course.courseStatistics.revenue || 0)}</p>
+            <p>Revenue this month: ${calculateMonthlyRevenue(course)}</p>
+            <p>Average revenue per student: ${formatPrice(course.price)}</p>
+        `;
+
+            document.getElementById('completionRate').innerHTML = `
+            <p>Overall completion rate: ${course.courseStatistics.completionRate || 0}%</p>
+            <p>Average time to complete: ${calculateCompletionDays(course)} days</p>
+            <p>Students who completed all lessons: ${calculateCompletedStudents(course)}</p>
+        `;
+
+            document.getElementById('dropoutRate').innerHTML = `
+            <p>Overall drop-out rate: ${course.courseStatistics.dropOutRate || 0}%</p>
+            <p>Most common drop-out point: Lesson ${findCommonDropoutPoint(course)}</p>
+            <p>Students who haven't logged in for 30+ days: ${calculateInactiveStudents(course)}</p>
+        `;
+        }
+    }
+
+    // Function to load lessons for a course
+    function loadLessons(courseId) {
+        courseStompClient.send("/app/course/lessons", {}, JSON.stringify({courseId: courseId}));
+    }
+
+    // Function to render lessons
+    function renderLessons(lessons) {
+        var lessonsList = document.getElementById('lessonsList');
+        lessonsList.innerHTML = '';
+
+        lessons.forEach(function(lesson, index) {
+            var lessonIcon = getLessonIcon(lesson.lessonType);
+            var activeClass = index === 0 ? 'active' : '';
+
+            var lessonHtml = `
+            <li class="lesson-item ${activeClass}" onclick="loadLessonContent(${lesson.id})">
+                <div class="lesson-icon"><i class="${lessonIcon}"></i></div>
+                <div>${lesson.title}</div>
+            </li>
+        `;
+
+            lessonsList.innerHTML += lessonHtml;
+        });
+
+        // Load first lesson content by default
+        if (lessons.length > 0) {
+            loadLessonContent(lessons[0].id);
+        }
+    }
+
+    function loadLessonContent(lessonId) {
+        courseStompClient.send("/app/lesson/content", {}, JSON.stringify({lessonId: lessonId}));
+    }
+
+    function loadReviews(courseId) {
+        courseStompClient.send("/app/course/reviews", {}, JSON.stringify({courseId: courseId}));
+    }
+
+    function renderReviews(reviews) {
+        var reviewsList = document.getElementById('reviewsList');
+        reviewsList.innerHTML = '';
+
+        reviews.forEach(function(review) {
+            var starsHtml = '';
+            for (var i = 0; i < 5; i++) {
+                if (i < Math.floor(review.rating)) {
+                    starsHtml += '<i class="fa-solid fa-star text-warning"></i>';
+                } else if (i === Math.floor(review.rating) && review.rating % 1 !== 0) {
+                    starsHtml += '<i class="fa-solid fa-star-half-stroke text-warning"></i>';
+                } else {
+                    starsHtml += '<i class="fa-regular fa-star text-warning"></i>';
+                }
+            }
+
+            var reviewHtml = `
+            <div class="comment">
+                <div class="comment-header">
+                    <div class="comment-user">${review.username}</div>
+                    <div class="comment-date">${formatDate(review.reviewDate)}</div>
+                </div>
+                <div>${starsHtml}</div>
+                <div class="comment-content mt-2">${review.content}</div>
+            </div>
+        `;
+
+            reviewsList.innerHTML += reviewHtml;
+        });
+    }
+
+</script>
+</head>
+
+
+
+<body>
+
+<h1>Course Modal Demo</h1>
+<p>Click the button below to open the course detail modal:</p>
+<button class="demo-button" onclick="openCourseModal()">View Course Details</button>
+
+<div id="courseDetailModal" class="course-detail-modal">
+    <div class="course-modal-content">
+        <div class="course-modal-header">
+            <h3 id="modalCourseTitle">Advanced Web Development</h3>
+            <button class="btn-close" onclick="closeCourseModal()">
+                <i class="fa-solid fa-times"></i>
+            </button>
+        </div>
+        <div class="tabs-container">
+            <div class="tab active" onclick="switchTab('overviewTab')">Overview</div>
+            <div class="tab" onclick="switchTab('lessonsTab')">Lessons</div>
+            <div class="tab" onclick="switchTab('statisticsTab')">Statistics</div>
+            <div class="tab" onclick="switchTab('reviewsTab')">Reviews</div>
+        </div>
+        <div class="course-modal-body">
+            <!-- Overview Tab -->
+            <div id="overviewTab" class="tab-pane active">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="course-info-panel">
+                            <div class="info-item">
+                                <div class="info-icon"><i class="fa-solid fa-user"></i></div>
+                                <div id="courseTeacher">Teacher: John Smith</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon"><i class="fa-solid fa-calendar"></i></div>
+                                <div id="courseCreateDate">Created on: January 15, 2025</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon"><i class="fa-solid fa-users"></i></div>
+                                <div id="courseEnrollment">Enrolled students: 1,243</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-icon"><i class="fa-solid fa-chart-line"></i></div>
+                                <div id="courseLevel">Level: Advanced</div>
+                            </div>
+                        </div>
+                        <div id="courseDescription" class="mb-4">
+                            <h4>Course Description</h4>
+                            <p>This comprehensive course covers modern web development techniques including HTML5, CSS3, JavaScript, React, and Node.js. You'll learn how to build responsive, accessible, and performant web applications from scratch.</p>
+                            <p>By the end of this course, you'll be able to:</p>
+                            <ul>
+                                <li>Design and implement complex UI components</li>
+                                <li>Create responsive layouts that work across devices</li>
+                                <li>Build RESTful APIs with Node.js</li>
+                                <li>Deploy your applications to production</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <img id="courseImage" src="https://via.placeholder.com/300x200?text=Web+Development" class="card-img-top" alt="Course Image">
+                            <div class="card-body">
+                                <h5 id="coursePrice" class="text-center">$89.99</h5>
+                                <div class="progress-container">
+                                    <p>Course completion</p>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 45%"></div>
+                                    </div>
+                                    <p class="text-end" id="progressPercent">45%</p>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <i class="fa-solid fa-star text-warning"></i>
+                                        <span id="courseRating">4.8/5</span>
+                                    </div>
+                                    <div>
+                                        <i class="fa-solid fa-comment"></i>
+                                        <span id="courseReviewCount">432</span> reviews
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lessons Tab -->
+            <div id="lessonsTab" class="tab-pane">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="course-sidebar">
+                            <h5 class="px-3 mb-3">Course Content</h5>
+                            <ul id="lessonsList" class="lesson-list">
+                                <li class="lesson-item active" onclick="loadLesson(1)">
+                                    <div class="lesson-icon"><i class="fa-solid fa-play"></i></div>
+                                    <div>Introduction to Web Development</div>
+                                </li>
+                                <li class="lesson-item" onclick="loadLesson(2)">
+                                    <div class="lesson-icon"><i class="fa-solid fa-play"></i></div>
+                                    <div>HTML5 Fundamentals</div>
+                                </li>
+                                <li class="lesson-item" onclick="loadLesson(3)">
+                                    <div class="lesson-icon"><i class="fa-solid fa-file-alt"></i></div>
+                                    <div>CSS3 Styling Techniques</div>
+                                </li>
+                                <li class="lesson-item" onclick="loadLesson(4)">
+                                    <div class="lesson-icon"><i class="fa-solid fa-play"></i></div>
+                                    <div>JavaScript Essentials</div>
+                                </li>
+                                <li class="lesson-item" onclick="loadLesson(5)">
+                                    <div class="lesson-icon"><i class="fa-solid fa-puzzle-piece"></i></div>
+                                    <div>Building Components with React</div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div id="lessonContent" class="lesson-content">
+                            <h4 id="lessonTitle">Introduction to Web Development</h4>
+                            <div id="lessonVideoContainer" class="video-container">
+                                <iframe width="560" height="315" src="https://www.youtube.com/embed/dQw4w9WgXcQ" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                            </div>
+                            <div id="lessonTextContent">
+                                <p>Welcome to the introduction lesson! In this module, we'll cover the basics of web development and set up our development environment.</p>
+                                <p>Web development is the process of building and maintaining websites and web applications. It involves various technologies, frameworks, and best practices to create functional and attractive web interfaces.</p>
+                            </div>
+
+                            <div id="lessonFiles" class="mt-4">
+                                <h5>Attachments</h5>
+                                <div id="filesList">
+                                    <div class="file-item">
+                                        <div class="file-icon"><i class="fa-solid fa-file-pdf"></i></div>
+                                        <div class="file-info">
+                                            <div class="file-name">Course Syllabus</div>
+                                            <div class="file-size">1.2 MB</div>
+                                        </div>
+                                        <div class="file-download">
+                                            <i class="fa-solid fa-download"></i>
+                                        </div>
+                                    </div>
+                                    <div class="file-item">
+                                        <div class="file-icon"><i class="fa-solid fa-file-code"></i></div>
+                                        <div class="file-info">
+                                            <div class="file-name">Sample Code</div>
+                                            <div class="file-size">348 KB</div>
+                                        </div>
+                                        <div class="file-download">
+                                            <i class="fa-solid fa-download"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="discussion-section">
+                                <h5>Discussion</h5>
+                                <div id="discussionList">
+                                    <div class="comment">
+                                        <div class="comment-header">
+                                            <div class="comment-user">Sarah Johnson</div>
+                                            <div class="comment-date">March 12, 2025</div>
+                                        </div>
+                                        <div class="comment-content">
+                                            Great introduction! I'm excited to learn more about responsive design techniques.
+                                        </div>
+                                    </div>
+                                    <div class="comment">
+                                        <div class="comment-header">
+                                            <div class="comment-user">Michael Chen</div>
+                                            <div class="comment-date">March 14, 2025</div>
+                                        </div>
+                                        <div class="comment-content">
+                                            Is there a recommended code editor for this course? I'm currently using VS Code.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="new-comment">
+                                    <textarea id="newCommentText" rows="3" placeholder="Add your comment..."></textarea>
+                                    <button class="btn btn-primary" onclick="addComment()">Post Comment</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Tab -->
+            <div id="statisticsTab" class="tab-pane">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Enrollment Statistics</h5>
+                                <div id="enrolledStudents">
+                                    <p>Total Students: 1,243</p>
+                                    <p>New enrollments this month: 187</p>
+                                    <p>Average enrollments per day: 6.2</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Revenue</h5>
+                                <div id="revenueStats">
+                                    <p>Total Revenue: $111,828.57</p>
+                                    <p>Revenue this month: $16,823.13</p>
+                                    <p>Average revenue per student: $89.99</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Completion Rate</h5>
+                                <div id="completionRate">
+                                    <p>Overall completion rate: 68%</p>
+                                    <p>Average time to complete: 34 days</p>
+                                    <p>Students who completed all lessons: 845</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Drop-out Rate</h5>
+                                <div id="dropoutRate">
+                                    <p>Overall drop-out rate: 12%</p>
+                                    <p>Most common drop-out point: Lesson 4</p>
+                                    <p>Students who haven't logged in for 30+ days: 149</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reviews Tab -->
+            <div id="reviewsTab" class="tab-pane">
+                <div id="reviewsList">
+                    <div class="comment">
+                        <div class="comment-header">
+                            <div class="comment-user">Jennifer Williams</div>
+                            <div class="comment-date">March 10, 2025</div>
+                        </div>
+                        <div>
+                            <i class="fa-solid fa-star text-warning"></i>
+                            <i class="fa-solid fa-star text-warning"></i>
+                            <i class="fa-solid fa-star text-warning"></i>
+                            <i class="fa-solid fa-star text-warning"></i>
+                            <i class="fa-solid fa-star text-warning"></i>
+                        </div>
+                        <div class="comment-content mt-2">
+                            Excellent course! The content is comprehensive and the instructor explains concepts clearly. I've learned so much and feel ready to build my own web applications.
+                        </div>
+                    </div>
+                    <div class="comment">
+                        <div class="comment-header">
+                            <div class="comment-user">Robert Garcia</div>
+                            <div class="comment-date">March 8, 2025</div>
+                        </div>
+                        <div>
+                            <i class="fa-solid fa-star text-warning"></i>
+                            <i class="fa-solid fa-star text-warning"></i>
+                            <i class="fa-solid fa-star text-warning"></i>
+                            <i class="fa-solid fa-star text-warning"></i>
+                            <i class="fa-regular fa-star text-warning"></i>
+                        </div>
+                        <div class="comment-content mt-2">
+                            Very good course overall. The React section could use more examples, but the HTML and CSS sections were excellent. I would recommend this to anyone looking to improve their web development skills.
+                        </div>
+                    </div>
+                    <div class="comment">
+                        <div class="comment-header">
+                            <div class="comment-user">Emily Thompson</div>
+                            <div class="comment-date">March 5, 2025</div>
+                        </div>
+                        <div>
+                            <i class="fa-solid fa-star text-warning"></i>
+                            <i class="fa-solid fa-star text-warning"></i>
+                            <i class="fa-solid fa-star text-warning"></i>
+                            <i class="fa-solid fa-star text-warning"></i>
+                            <i class="fa-solid fa-star text-warning"></i>
+                        </div>
+                        <div class="comment-content mt-2">
+                            This course exceeded my expectations! The instructor is knowledgeable and engaging. The projects were challenging but achievable, and I feel much more confident in my skills now.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Add the Course Detail Modal -->
+
+</body></html>

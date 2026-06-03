@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Chat Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+
+    <style th:inline="css">
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        #chattuvan {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 380px;
+            max-height: 500px;
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #6216FF, #8A4FFF);
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .chat-header span {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .chat-header button {
+            background: none;
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .chat-header button:hover {
+            transform: scale(1.2);
+        }
+
+        .chat-body {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: #f9f9fc;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 12px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            position: relative;
+            font-size: 14px;
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, #6216FF, #8A4FFF);
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+
+        .bot-message {
+            background-color: #e6e6f0;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 12px;
+            background-color: white;
+            border-top: 1px solid #e6e6e6;
+            align-items: center;
+        }
+
+        .chat-input input {
+            flex-grow: 1;
+            border: 1px solid #d1d1d1;
+            border-radius: 20px;
+            padding: 10px 15px;
+            margin-right: 10px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .chat-input input:focus {
+            border-color: #6216FF;
+        }
+
+        .chat-input button {
+            background: linear-gradient(135deg, #6216FF, #8A4FFF);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .chat-input button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        #nguoituvan {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            z-index: 1001;
+        }
+
+        #nguoituvan:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.2);
+        }
+
+        .typing-indicator {
+            background-color: #f1f1f5;
+            color: #666;
+            padding: 8px 15px;
+            font-style: italic;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .chat-body::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-body::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .chat-body::-webkit-scrollbar-thumb {
+            background: #6216FF;
+            border-radius: 3px;
+        }
+
+        .empty-chat {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #888;
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+<div th:fragment="chatopenai">
+    <div id="chattuvan">
+        <div class="chat-header">
+            <span>AI Assistant</span>
+            <button id="closeChatButton">&times;</button>
+        </div>
+        <div class="chat-body" id="messageBox">
+            <div class="message-list" id="messageList">
+                <div class="empty-chat">
+                    Start a conversation with your AI assistant
+                </div>
+            </div>
+        </div>
+        <div id="typingIndicator" class="typing-indicator" style="display: none;">AI đang trả lời...</div>
+        <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="Nhập tin nhắn...">
+            <button id="sendButton">➤</button>
+        </div>
+    </div>
+
+    <img id="nguoituvan" th:src="@{/images/nguoituvan.png}" alt="Chat Assistant">
+</div>
+
+<script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+        let stompClientChat = null;
+        const messageBox = document.getElementById('messageBox');
+        const messageList = document.getElementById('messageList');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const chattuvan = document.getElementById('chattuvan');
+        const nguoituvan = document.getElementById('nguoituvan');
+        const closeChatButton = document.getElementById('closeChatButton');
+
+        let isChatOpen = false;
+
+        function toggleChat() {
+            isChatOpen = !isChatOpen;
+            chattuvan.style.display = isChatOpen ? 'flex' : 'none';
+        }
+
+        nguoituvan.addEventListener('click', toggleChat);
+        closeChatButton.addEventListener('click', toggleChat);
+
+        function connect() {
+            const socket = new SockJS('/ws');
+            stompClientChat = Stomp.over(socket);
+
+            stompClientChat.connect({}, function (frame) {
+                console.log('Connected: ' + frame);
+
+                stompClientChat.subscribe('/topic/messages', function (response) {
+                    const responseData = JSON.parse(response.body);
+                    console.log(responseData.response);
+                    displayBotMessage(responseData.response);
+                    typingIndicator.style.display = 'none';
+                });
+            });
+        }
+
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message && stompClientChat) {
+                const emptyChatMessage = messageList.querySelector('.empty-chat');
+                if (emptyChatMessage) {
+                    emptyChatMessage.remove();
+                }
+
+                displayUserMessage(message);
+                typingIndicator.style.display = 'block';
+
+                stompClientChat.send("/app/chat", {},
+                    JSON.stringify({'content': message})
+                );
+
+                messageInput.value = '';
+            }
+        }
+
+        function displayUserMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message user-message';
+            messageElement.textContent = message;
+            messageList.appendChild(messageElement);
+            scrollToBottom();
+        }
+
+        function displayBotMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message bot-message';
+            messageElement.innerHTML = '<span>' + message + '</span>';
+            messageList.appendChild(messageElement);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            messageBox.scrollTop = messageBox.scrollHeight;
+        }
+
+        connect();
+
+        sendButton.addEventListener('click', sendMessage);
+
+        messageInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    });
+</script>
+</body>
+</html>
